@@ -14,7 +14,7 @@ namespace Config::constants {
     inline constexpr int KEY_BYTES = crypto_aead_aes256gcm_KEYBYTES;
 
     inline constexpr int DEFAULT_COMPRESSION_LEVEL = 9;
-    inline constexpr int DEFAULT_KDF_MEMORY = 1048576;
+    inline constexpr int DEFAULT_KDF_MEMORY = 64;
     inline constexpr int DEFAULT_KDF_ITERATIONS = 3;
     inline constexpr int DEFAULT_KDF_PARALLELISM = 4;
 }

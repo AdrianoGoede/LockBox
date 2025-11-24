@@ -25,9 +25,9 @@ void Database::create(const SecureQByteArray& password, std::chrono::millisecond
     _kdfMemory = Config::constants::DEFAULT_KDF_MEMORY;
     _kdfIterations = Config::constants::DEFAULT_KDF_ITERATIONS;
     _kdfParallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
-    _kdfSalt = Crypto::generateSalt();
+    Crypto::generateSalt(_kdfSalt);
 
-    Crypto::deriveKey(password, _kdfSalt, unlockDelay, _masterKey);
+    // Crypto::deriveKey(password, _kdfSalt, unlockDelay, _masterKey);
 }
 
 void Database::load(const SecureQByteArray& password)
@@ -102,7 +102,7 @@ void Database::loadHeader(const QJsonObject& header)
     _kdfMemory = obj["memory"].toInt(Config::constants::DEFAULT_KDF_MEMORY);
     _kdfIterations = obj["iterations"].toInt(Config::constants::DEFAULT_KDF_ITERATIONS);
     _kdfParallelism = obj["parallelism"].toInt(Config::constants::DEFAULT_KDF_PARALLELISM);
-    _kdfSalt = QByteArray::fromBase64(obj["salt"].toString(Crypto::generateSalt().toBase64()).toUtf8());
+    _kdfSalt = QByteArray::fromBase64(obj["salt"].toString().toUtf8());
 
     obj = header["compression"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");

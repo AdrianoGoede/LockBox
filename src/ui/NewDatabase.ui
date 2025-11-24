@@ -123,9 +123,6 @@
        <property name="echoMode">
         <enum>QLineEdit::EchoMode::Password</enum>
        </property>
-       <property name="alignment">
-        <set>Qt::AlignmentFlag::AlignCenter</set>
-       </property>
       </widget>
      </item>
      <item>

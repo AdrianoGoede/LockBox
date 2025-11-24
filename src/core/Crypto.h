@@ -5,9 +5,10 @@
 #include <chrono>
 
 namespace Crypto {
-    void encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, SecureQByteArray& ciphertext, QByteArray& nonce);
+    void encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, QByteArray& ciphertext, QByteArray& nonce);
     void decrypt(const QByteArray& ciphertext, const SecureQByteArray& key, const QByteArray& nonce, SecureQByteArray& plaintext);
-    void deriveKey(const SecureQByteArray& password, const QByteArray& salt, std::chrono::milliseconds delay, SecureQByteArray& key);
+    void deriveKey(const SecureQByteArray& password, const QByteArray& salt, quint64 memoryKiB, quint32 iterations, quint32 parallelism, SecureQByteArray& key);
+    void tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism);
     void generateKey(SecureQByteArray& key);
     void generateNonce(QByteArray& nonce);
     void generateSalt(QByteArray& salt);

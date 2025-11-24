@@ -1,10 +1,11 @@
 #include "Crypto.h"
 #include "../config/Constants.h"
 #include <sodium.h>
+#include <QString>
 
-void Crypto::encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, SecureQByteArray& ciphertext, QByteArray& nonce)
+void Crypto::encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, QByteArray& ciphertext, QByteArray& nonce)
 {
-    ciphertext.wipe();
+    ciphertext.clear();
     ciphertext.resize((plaintext.size() + crypto_aead_aes256gcm_ABYTES), 0);
     generateNonce(nonce);
 
@@ -23,6 +24,7 @@ void Crypto::encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& 
 
     if (result != 0) {
         nonce.clear();
+        ciphertext.clear();
         throw std::runtime_error("AES-256-GCM encryption failed");
     }
 }
@@ -54,10 +56,63 @@ void Crypto::decrypt(const QByteArray& ciphertext, const SecureQByteArray& key, 
     }
 }
 
-void Crypto::deriveKey(const SecureQByteArray& password, const QByteArray& salt, std::chrono::milliseconds delay, SecureQByteArray& key)
+void Crypto::deriveKey(const SecureQByteArray& password, const QByteArray& salt, quint64 memoryKiB, quint32 iterations, quint32 parallelism, SecureQByteArray& key)
 {
+    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
+
     key.wipe();
-    // To do
+    key.resize(Config::constants::KEY_BYTES, 0);
+
+    int result = crypto_pwhash(
+        reinterpret_cast<u_char*>(key.data()),
+        key.size(),
+        password.constData(),
+        password.size(),
+        reinterpret_cast<const u_char*>(salt.constData()),
+        iterations,
+        (memoryKiB * 1024ULL),
+        crypto_pwhash_ALG_ARGON2ID13
+    );
+
+    if (result != 0) {
+        key.wipe();
+        throw std::runtime_error("Argon2id benchmark failed");
+    }
+}
+
+void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64 &memoryKiB, quint32 &iterations, quint32 &parallelism)
+{
+    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
+
+    memoryKiB = (Config::constants::DEFAULT_KDF_MEMORY * 1024);
+    iterations = Config::constants::DEFAULT_KDF_ITERATIONS;
+    parallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
+
+    QByteArray dummySalt(Config::constants::SALT_BYTES, 'x');
+    QByteArray dummyOutput(Config::constants::SALT_BYTES, 0);
+    QString dummyPassword("test");
+
+    auto benchmark = [&]() -> std::chrono::milliseconds {
+        auto start = std::chrono::high_resolution_clock::now();
+        int result = crypto_pwhash(
+            reinterpret_cast<u_char*>(dummyOutput.data()),
+            Config::constants::SALT_BYTES,
+            dummyPassword.toUtf8(),
+            dummyPassword.size(),
+            reinterpret_cast<const u_char*>(dummySalt.constData()),
+            iterations,
+            (memoryKiB * 1024ULL),
+            crypto_pwhash_ALG_ARGON2ID13
+        );
+        auto end = std::chrono::high_resolution_clock::now();
+
+        if (result != 0)
+            throw std::runtime_error("Argon2id benchmark failed");
+        return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    };
+
+    while (benchmark() < targetDelay && memoryKiB < (1024 * 1024))
+        memoryKiB *= 2;
 }
 
 void Crypto::generateNonce(QByteArray& nonce)
