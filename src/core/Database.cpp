@@ -25,9 +25,10 @@ void Database::create(const SecureQByteArray& password, std::chrono::millisecond
     _kdfMemory = Config::constants::DEFAULT_KDF_MEMORY;
     _kdfIterations = Config::constants::DEFAULT_KDF_ITERATIONS;
     _kdfParallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
-    Crypto::generateSalt(_kdfSalt);
 
-    // Crypto::deriveKey(password, _kdfSalt, unlockDelay, _masterKey);
+    Crypto::generateSalt(_kdfSalt);
+    Crypto::tuneArgon2idParams(unlockDelay, _kdfMemory, _kdfIterations, _kdfParallelism);
+    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
 }
 
 void Database::load(const SecureQByteArray& password)
@@ -59,7 +60,7 @@ void Database::save()
         { "entries", dataEntries }
     };
 
-    SecureQByteArray encryptedData;
+    QByteArray encryptedData;
     Crypto::encrypt(
         SecureQByteArray(qCompress(QJsonDocument(dataObj).toJson(QJsonDocument::JsonFormat::Compact), _compressionLevel)),
         _masterKey,
@@ -70,16 +71,16 @@ void Database::save()
     QJsonObject jsonObj;
     jsonObj["header"] = QJsonObject{
         { "kdf", QJsonObject {
-            { "memory", _kdfMemory },
-            { "iterations", _kdfIterations },
-            { "parallelism", _kdfParallelism },
+            { "memory", QJsonValue::fromVariant(_kdfMemory) },
+            { "iterations", QJsonValue::fromVariant(_kdfIterations) },
+            { "parallelism", QJsonValue::fromVariant(_kdfParallelism) },
             { "salt", QString(_kdfSalt.toBase64()) }
         }},
         { "crypto", QJsonObject {
             { "nonce", QString(_cryptoNonce.toBase64()) }
         }},
         { "compression", QJsonObject {
-            { "level", _compressionLevel }
+            { "level", QJsonValue::fromVariant(_compressionLevel) }
         }}
     };
     jsonObj["data"] = QString(encryptedData.toBase64());
@@ -94,6 +95,88 @@ void Database::save()
         throw;
     }
 }
+
+void Database::addEntry(const QUuid& group, const QString& title, const QString& notes, const SecureQByteArray& password)
+{
+    DatabaseEntry entry;
+    entry.setGroup(group);
+    entry.setTitle(title);
+    entry.setNotes(notes);
+    entry.setPassword(password);
+
+    _dbEntryKeys.append(entry.uid());
+    _dbEntries[entry.uid()] = std::move(entry);
+
+    emit entryAdded(_dbEntryKeys.size() - 1);
+}
+
+void Database::addGroup(const QUuid& parent, const QString& title)
+{
+    DatabaseGroup group;
+    group.setParent(parent);
+    group.setTitle(title);
+
+    _dbGroupKeys.append(group.uid());
+    _dbGroups[group.uid()] = std::move(group);
+
+    emit groupAdded(_dbGroupKeys.size() - 1);
+}
+
+void Database::removeEntry(const QUuid& uid)
+{
+    qsizetype row = _dbEntryKeys.indexOf(uid);
+    if (row < 0) return;
+    _dbEntryKeys.removeAt(row);
+    _dbEntries.remove(uid);
+    emit entryRemoved(row);
+}
+
+void Database::removeGroup(const QUuid& uid)
+{
+    qsizetype row = _dbGroupKeys.indexOf(uid);
+    if (row < 0) return;
+    _dbGroupKeys.removeAt(row);
+    _dbGroups.remove(uid);
+    emit groupRemoved(row);
+}
+
+size_t Database::entryCount() const { return _dbEntries.size(); }
+
+size_t Database::groupCount() const { return _dbGroups.size(); }
+
+const DatabaseEntry& Database::entry(const QUuid& uid) const
+{
+    if (!_dbEntries.contains(uid))
+        throw std::runtime_error("Entry not found");
+    return _dbEntries.find(uid).value();
+}
+
+const DatabaseEntry& Database::entry(int index) const
+{
+    if (index >= _dbEntryKeys.size())
+        throw std::runtime_error("Index out of range");
+    const QUuid& uid = _dbEntryKeys[index];
+    return _dbEntries.find(uid).value();
+}
+
+const DatabaseGroup &Database::group(const QUuid &uid) const
+{
+    if (!_dbGroups.contains(uid))
+        throw std::runtime_error("Group not found");
+    return _dbGroups.find(uid).value();
+}
+
+const DatabaseGroup &Database::group(int index) const
+{
+    if (index >= _dbGroupKeys.size())
+        throw std::runtime_error("Index out of range");
+    const QUuid& uid = _dbGroupKeys[index];
+    return _dbGroups.find(uid).value();
+}
+
+qsizetype Database::indexOfEntry(const QUuid& uid) const { return _dbEntryKeys.indexOf(uid); }
+
+qsizetype Database::indexOfGroup(const QUuid& uid) const { return _dbGroupKeys.indexOf(uid); }
 
 void Database::loadHeader(const QJsonObject& header)
 {
@@ -127,12 +210,14 @@ void Database::loadData(const QByteArray& data)
     QJsonArray array = doc.object()["groups"].toArray();
     for (const QJsonValueRef& groupRef : array) {
         DatabaseGroup group(groupRef.toObject());
-        _dbGroups[group.uid()] = group;
+        _dbGroupKeys.append(group.uid());
+        _dbGroups[group.uid()] = std::move(group);
     }
 
     array = doc.object()["entries"].toArray();
     for (const QJsonValueRef& entryRef : array) {
         DatabaseEntry entry(entryRef.toObject());
-        _dbEntries[entry.uid()] = entry;
+        _dbEntryKeys.append(entry.uid());
+        _dbEntries[entry.uid()] = std::move(entry);
     }
 }

@@ -1,4 +1,4 @@
-#include "src/ui//MainWidget.h"
+#include "src/ui//MainWindow.h"
 
 #include <QApplication>
 #include <QLocale>
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    MainWidget w;
+    MainWindow w;
     w.show();
     return a.exec();
 }

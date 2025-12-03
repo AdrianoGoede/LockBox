@@ -1,7 +1,7 @@
 #include "DatabaseGroup.h"
 #include <QJsonArray>
 
-DatabaseGroup::DatabaseGroup() {}
+DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 
 DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
 {

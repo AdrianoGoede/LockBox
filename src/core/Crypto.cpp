@@ -80,7 +80,7 @@ void Crypto::deriveKey(const SecureQByteArray& password, const QByteArray& salt,
     }
 }
 
-void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64 &memoryKiB, quint32 &iterations, quint32 &parallelism)
+void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism)
 {
     if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
 
