@@ -138,3 +138,14 @@ void Crypto::generateKey(SecureQByteArray& key)
     key.resize(Config::constants::KEY_BYTES);
     randombytes_buf(key.data(), key.size());
 }
+
+void Crypto::generateRandomPassword(const QVector<char>& charset, qsizetype length, SecureQByteArray& out)
+{
+    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
+    out.wipe();
+    out.resize(length);
+    for (int i = 0; i < length; i++) {
+        int index = randombytes_uniform(static_cast<uint32_t>(charset.size()));
+        out.append(charset.at(index));
+    }
+}

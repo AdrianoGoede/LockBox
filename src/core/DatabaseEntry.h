@@ -19,6 +19,8 @@ public:
     void setGroup(const DatabaseGroup& group);
     QString title() const;
     void setTitle(const QString& title);
+    QString username() const;
+    void setUsername(const QString& name);
     QString notes() const;
     void setNotes(const QString& notes);
     QDateTime createdAt() const;
@@ -30,7 +32,7 @@ public:
 private:
     QUuid _uid;
     QUuid _group;
-    QString _title, _notes;
+    QString _title, _username, _notes;
     QDateTime _createdAt, _modifiedAt;
     QByteArray _nonce;
     SecureQByteArray _password, _key;

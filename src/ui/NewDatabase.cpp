@@ -1,5 +1,6 @@
 #include "NewDatabase.h"
 #include "./src/ui/ui_NewDatabase.h"
+#include "PasswordGenerator.h"
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -7,6 +8,7 @@ NewDatabase::NewDatabase(NewDbConfig& newDbConfig, QWidget* parent) : QDialog(pa
 {
     ui->setupUi(this);
     connect(ui->pbFilePath, &QAbstractButton::clicked, this, &NewDatabase::selectFilePath);
+    connect(ui->pbGeneratePassword, &QAbstractButton::clicked, this, &NewDatabase::generatePassword);
     connect(ui->pbTogglePasswordShow, &QAbstractButton::clicked, this, &NewDatabase::togglePasswordVisibility);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -44,6 +46,14 @@ void NewDatabase::selectFilePath()
         QDir::currentPath(),
         QString("LockBox Database (*.lbdb)")
     ));
+}
+
+void NewDatabase::generatePassword()
+{
+    SecureQByteArray password;
+    PasswordGenerator generator(&password, this);
+    if (generator.exec() == QDialog::DialogCode::Accepted)
+        ui->lePassword->setText(password);
 }
 
 void NewDatabase::togglePasswordVisibility(bool visible) { ui->lePassword->setEchoMode(visible ? QLineEdit::EchoMode::Normal : QLineEdit::EchoMode::Password); }

@@ -9,6 +9,7 @@ DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
     _uid = QUuid(obj["uuid"].toString());
     _group = QUuid(obj["group"].toString());
     _title = obj["title"].toString();
+    _username = obj["username"].toString();
     _notes = obj["notes"].toString();
     if (_uid.isNull() || _group.isNull() || _title.isEmpty())
         throw std::runtime_error("Invalid or corrupted data");
@@ -38,6 +39,14 @@ QString DatabaseEntry::title() const { return _title; }
 void DatabaseEntry::setTitle(const QString& title)
 {
     _title = title;
+    _modifiedAt = QDateTime::currentDateTimeUtc();
+}
+
+QString DatabaseEntry::username() const { return _username; }
+
+void DatabaseEntry::setUsername(const QString& name)
+{
+    _username = name;
     _modifiedAt = QDateTime::currentDateTimeUtc();
 }
 
@@ -72,6 +81,7 @@ QJsonObject DatabaseEntry::toJson() const
     QJsonObject obj;
     obj["uuid"] = QString(_uid.toRfc4122().data());
     obj["title"] = _title;
+    obj["username"] = _username;
     obj["password"] = password().data();
     obj["notes"] = _notes;
     obj["created"] = _createdAt.toSecsSinceEpoch();

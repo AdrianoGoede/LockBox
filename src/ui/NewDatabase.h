@@ -28,6 +28,7 @@ public slots:
 
 private slots:
     void selectFilePath();
+    void generatePassword();
     void togglePasswordVisibility(bool visible);
 
 private:
