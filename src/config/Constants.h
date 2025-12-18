@@ -2,10 +2,12 @@
 #define CONSTANTS_H
 
 #include <QtGlobal>
+#include <QString>
 #include <sodium.h>
 #include <chrono>
 
 namespace Config::constants {
+    inline constexpr char FILE_FILTER[]                             = "LockBox Database (*.lbdb)";
     inline constexpr int MIN_PASSWORD_LENGTH                        = 8;
     inline constexpr int MAX_PASSWORD_LENGTH                        = 100;
     inline constexpr std::chrono::milliseconds DEFAULT_UNLOCK_DELAY = (std::chrono::milliseconds)1000;

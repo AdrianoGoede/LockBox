@@ -7,7 +7,7 @@
 
 Database::Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay)
 {
-    _dbFile = std::make_unique<QFile>(new QFile(filePath));
+    _dbFile = std::make_unique<QFile>(filePath);
     if (_dbFile->exists())
         this->load(password);
     else

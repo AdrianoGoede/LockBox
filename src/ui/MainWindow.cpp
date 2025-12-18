@@ -1,5 +1,9 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
+#include "NewDatabase.h"
+#include <QMessageBox>
+#include <QFileDialog>
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -41,17 +45,99 @@ MainWindow::~MainWindow() { delete ui; }
 
 void MainWindow::newDatabase()
 {
+    try {
+        NewDbConfig config;
+        NewDatabase newDbForm(config, this);
 
+        if (newDbForm.exec() == QDialog::DialogCode::Accepted) {
+            _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay);
+            toggleDatabaseOpenState();
+        }
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::openDatabase()
 {
+    try {
+        if (_database) {
+            QMessageBox::StandardButton button = QMessageBox::question(
+                this,
+                "?",
+                "Save the currently open database?",
+                (QMessageBox::StandardButton::Yes | QMessageBox::Button::No | QMessageBox::Button::Cancel),
+                QMessageBox::StandardButton::Yes
+            );
 
+            if (button == QMessageBox::StandardButton::Cancel)
+                return;
+            else if (button == QMessageBox::StandardButton::Yes)
+                _database->save();
+            toggleDatabaseOpenState();
+        }
+
+        QString path = QFileDialog::getOpenFileName(
+            this,
+            "Select file",
+            QDir::currentPath(),
+            QString(Config::constants::FILE_FILTER)
+        );
+
+        if (path.isEmpty()) {
+            throw std::runtime_error("Invalid path!");
+            return;
+        }
+
+        bool ok;
+        SecureQByteArray password(QInputDialog::getText(
+            this,
+            "Enter the password",
+            QString(),
+            QLineEdit::EchoMode::Password,
+            QString(),
+            &ok
+        ).toUtf8());
+
+        if (!ok)
+            return;
+        else if (password.isEmpty()) {
+            throw std::runtime_error("Password cannot be empty!");
+            return;
+        }
+
+        _database = std::make_unique<Database>(path, password);
+        toggleDatabaseOpenState();
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::saveDatabase()
 {
-
+    try {
+        _database->save();
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::saveDatabaseAs()
@@ -132,4 +218,10 @@ void MainWindow::openRepo()
 void MainWindow::openAboutPage()
 {
 
+}
+
+void MainWindow::toggleDatabaseOpenState()
+{
+    ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
+    ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
 }

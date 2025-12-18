@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "../core/Database.h"
 
 namespace Ui {
     class MainWindow;
@@ -37,7 +38,9 @@ private slots:
     void openAboutPage();
 
 private:
-    Ui::MainWindow *ui;
+    Ui::MainWindow* ui;
+    std::unique_ptr<Database> _database = nullptr;
+    void toggleDatabaseOpenState();
 };
 
 #endif // MAINWINDOW_H

@@ -1,5 +1,6 @@
 #include "NewDatabase.h"
 #include "./src/ui/ui_NewDatabase.h"
+#include "../config/Constants.h"
 #include "PasswordGenerator.h"
 #include <QFileDialog>
 #include <QMessageBox>
@@ -44,7 +45,7 @@ void NewDatabase::selectFilePath()
         this,
         QString("Select the database file location"),
         QDir::currentPath(),
-        QString("LockBox Database (*.lbdb)")
+        QString(Config::constants::FILE_FILTER)
     ));
 }
 
