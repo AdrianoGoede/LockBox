@@ -27,7 +27,7 @@ void DatabaseGroup::setTitle(const QString& title) { _title = title; }
 QJsonObject DatabaseGroup::toJson() const
 {
     QJsonObject obj;
-    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithBraces);
+    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
     obj["title"] = _title;
     return obj;
 }

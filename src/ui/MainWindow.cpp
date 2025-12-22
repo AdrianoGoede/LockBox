@@ -40,7 +40,23 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->pbDatabaseSettings, &QAbstractButton::clicked, this, &MainWindow::openDatabaseSettings);
     connect(ui->pbAppSettings, &QAbstractButton::clicked, this, &MainWindow::openAppSettings);
 
+    connect(ui->leEntryTitleFilter, &QLineEdit::textChanged, this, &MainWindow::filterEntryTitle);
+    connect(ui->dteCreatedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedAfter);
+    connect(ui->dteCreatedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedBefore);
+    connect(ui->dteModifiedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedAfter);
+    connect(ui->dteModifiedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedBefore);
 
+    _entriesModel = new DatabaseEntryTableModel(this);
+    _entriesProxyModel = new DatabaseEntryTableProxyModel(this);
+    _entriesProxyModel->setSourceModel(_entriesModel);
+    ui->tvEntries->setModel(_entriesProxyModel);
+    ui->tvEntries->setSortingEnabled(true);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    ui->dteCreatedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
+    ui->dteCreatedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
+    ui->dteModifiedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
+    ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -52,7 +68,8 @@ void MainWindow::newDatabase()
         NewDatabase newDbForm(config, this);
 
         if (newDbForm.exec() == QDialog::DialogCode::Accepted) {
-            _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay);
+            _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay, this);
+            _entriesModel->setDatabase(_database.get());
             toggleDatabaseOpenState();
         }
     }
@@ -112,6 +129,7 @@ void MainWindow::openDatabase()
         }
 
         _database = std::make_unique<Database>(path, password);
+        _entriesModel->setDatabase(_database.get());
         toggleDatabaseOpenState();
     }
     catch (const std::runtime_error& error) {
@@ -169,6 +187,36 @@ void MainWindow::deleteEntry()
 
 }
 
+void MainWindow::filterEntryTitle(const QString& filter)
+{
+    if (_entriesProxyModel)
+        _entriesProxyModel->setTitleFilter(filter);
+}
+
+void MainWindow::filterEntryCreatedAfter(const QDateTime& filter)
+{
+    if (_entriesProxyModel)
+        _entriesProxyModel->setCreatedFromFilter(filter);
+}
+
+void MainWindow::filterEntryCreatedBefore(const QDateTime& filter)
+{
+    if (_entriesProxyModel)
+        _entriesProxyModel->setCreatedToFilter(filter);
+}
+
+void MainWindow::filterEntryModifiedAfter(const QDateTime& filter)
+{
+    if (_entriesProxyModel)
+        _entriesProxyModel->setModifiedFromFilter(filter);
+}
+
+void MainWindow::filterEntryModifiedBefore(const QDateTime& filter)
+{
+    if (_entriesProxyModel)
+        _entriesProxyModel->setModifiedToFilter(filter);
+}
+
 void MainWindow::copyEntryUsername()
 {
 
@@ -224,4 +272,10 @@ void MainWindow::toggleDatabaseOpenState()
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
     ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
+
+    ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
+    ui->dteCreatedFromFilter->setEnabled(!ui->dteCreatedFromFilter->isEnabled());
+    ui->dteCreatedToFilter->setEnabled(!ui->dteCreatedToFilter->isEnabled());
+    ui->dteModifiedFromFilter->setEnabled(!ui->dteModifiedFromFilter->isEnabled());
+    ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
 }

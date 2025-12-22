@@ -5,7 +5,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-Database::Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay)
+Database::Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay, QObject* parent) : QObject{parent}
 {
     _dbFile = std::make_unique<QFile>(filePath);
     if (_dbFile->exists())

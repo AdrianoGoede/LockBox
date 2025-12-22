@@ -19,7 +19,7 @@ class Database : public QObject
     Q_OBJECT
 
 public:
-    Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay = Config::constants::DEFAULT_UNLOCK_DELAY);
+    Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay = Config::constants::DEFAULT_UNLOCK_DELAY, QObject* parent = nullptr);
     ~Database();
     void create(const SecureQByteArray& password, std::chrono::milliseconds unlockDelay);
     void load(const SecureQByteArray& password);

@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include "../core/Database.h"
+#include "../core/DatabaseEntryTableModel.h"
+#include "../core/DatabaseEntryTableProxyModel.h"
 
 namespace Ui {
     class MainWindow;
@@ -26,6 +28,11 @@ private slots:
     void newEntry();
     void editEntry();
     void deleteEntry();
+    void filterEntryTitle(const QString& filter);
+    void filterEntryCreatedAfter(const QDateTime& filter);
+    void filterEntryCreatedBefore(const QDateTime& filter);
+    void filterEntryModifiedAfter(const QDateTime& filter);
+    void filterEntryModifiedBefore(const QDateTime& filter);
     void copyEntryUsername();
     void copyEntryPassword();
     void autotypeEntry();
@@ -40,6 +47,8 @@ private slots:
 private:
     Ui::MainWindow* ui;
     std::unique_ptr<Database> _database = nullptr;
+    DatabaseEntryTableModel* _entriesModel = nullptr;
+    DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
     void toggleDatabaseOpenState();
 };
 

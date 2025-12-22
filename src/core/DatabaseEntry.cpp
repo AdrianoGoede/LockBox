@@ -79,8 +79,8 @@ void DatabaseEntry::setPassword(const SecureQByteArray& password)
 QJsonObject DatabaseEntry::toJson() const
 {
     QJsonObject obj;
-    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithBraces);
-    obj["group"] = _group.toString(QUuid::StringFormat::WithBraces);
+    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
+    obj["group"] = _group.toString(QUuid::StringFormat::WithoutBraces);
     obj["title"] = _title;
     obj["username"] = _username;
     obj["password"] = password().data();

@@ -6,17 +6,18 @@
 #include <QObject>
 
 enum DatabaseEntryModelColumns {
-    Uid = 0,
-    Title = 1,
-    CreatedAt = 2,
-    ModifiedAt = 3,
+    Title = 0,
+    CreatedAt = 1,
+    ModifiedAt = 2,
+    Uid = 3,
     ColumnCount
 };
 
 class DatabaseEntryTableModel : public QAbstractTableModel
 {
 public:
-    explicit DatabaseEntryTableModel(Database& database, QObject *parent = nullptr);
+    explicit DatabaseEntryTableModel(QObject *parent = nullptr);
+    void setDatabase(Database* database);
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -25,7 +26,7 @@ public:
     void removeEntry(const QUuid& uid);
 
 private:
-    Database& _database;
+    Database* _database = nullptr;
 };
 
 #endif // DATABASEENTRYTABLEMODEL_H
