@@ -39,6 +39,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->pbPasswordGenerator, &QAbstractButton::clicked, this, &MainWindow::openPasswordGenerator);
     connect(ui->pbDatabaseSettings, &QAbstractButton::clicked, this, &MainWindow::openDatabaseSettings);
     connect(ui->pbAppSettings, &QAbstractButton::clicked, this, &MainWindow::openAppSettings);
+
+
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -80,7 +82,6 @@ void MainWindow::openDatabase()
                 return;
             else if (button == QMessageBox::StandardButton::Yes)
                 _database->save();
-            toggleDatabaseOpenState();
         }
 
         QString path = QFileDialog::getOpenFileName(
@@ -90,10 +91,8 @@ void MainWindow::openDatabase()
             QString(Config::constants::FILE_FILTER)
         );
 
-        if (path.isEmpty()) {
-            throw std::runtime_error("Invalid path!");
+        if (path.isEmpty())
             return;
-        }
 
         bool ok;
         SecureQByteArray password(QInputDialog::getText(
@@ -224,4 +223,5 @@ void MainWindow::toggleDatabaseOpenState()
 {
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
+    ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
 }

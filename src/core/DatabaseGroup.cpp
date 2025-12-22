@@ -5,8 +5,9 @@ DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 
 DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
 {
-    _uid = QUuid(jsonObj["uuid"].toString());
+    _uid = QUuid::fromString(jsonObj["uuid"].toString());
     _title = jsonObj["title"].toString();
+
     if (_uid.isNull() || _title.isEmpty())
         throw std::runtime_error("Invalid or corrupted data");
 }
@@ -26,7 +27,7 @@ void DatabaseGroup::setTitle(const QString& title) { _title = title; }
 QJsonObject DatabaseGroup::toJson() const
 {
     QJsonObject obj;
-    obj["uuid"] = _uid.toRfc4122().data();
+    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithBraces);
     obj["title"] = _title;
     return obj;
 }

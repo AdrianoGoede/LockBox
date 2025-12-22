@@ -29,6 +29,8 @@ void Database::create(const SecureQByteArray& password, std::chrono::millisecond
     Crypto::generateSalt(_kdfSalt);
     Crypto::tuneArgon2idParams(unlockDelay, _kdfMemory, _kdfIterations, _kdfParallelism);
     Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+
+    save();
 }
 
 void Database::load(const SecureQByteArray& password)
@@ -43,7 +45,7 @@ void Database::load(const SecureQByteArray& password)
     if (parseError.error != QJsonParseError::ParseError::NoError)
         throw std::runtime_error(parseError.errorString().toStdString());
 
-    loadHeader(doc.object()["header"].toObject());
+    loadHeader(doc.object()["header"].toObject(), password);
     loadData(QByteArray::fromBase64(doc.object()["data"].toString().toUtf8()));
 }
 
@@ -87,7 +89,9 @@ void Database::save()
 
     try {
         _dbFile->startTransaction();
+        _dbFile->resize(0);
         _dbFile->write(QJsonDocument(jsonObj).toJson(QJsonDocument::JsonFormat::Compact));
+        _dbFile->flush();
         _dbFile->commitTransaction();
     }
     catch (...) {
@@ -110,10 +114,11 @@ void Database::addEntry(const QUuid& group, const QString& title, const QString&
     emit entryAdded(_dbEntryKeys.size() - 1);
 }
 
-void Database::addGroup(const QUuid& parent, const QString& title)
+void Database::addGroup(const QString& title, const QUuid* parent)
 {
     DatabaseGroup group;
-    group.setParent(parent);
+    if (parent && !parent->isNull())
+        group.setParent(*parent);
     group.setTitle(title);
 
     _dbGroupKeys.append(group.uid());
@@ -178,7 +183,7 @@ qsizetype Database::indexOfEntry(const QUuid& uid) const { return _dbEntryKeys.i
 
 qsizetype Database::indexOfGroup(const QUuid& uid) const { return _dbGroupKeys.indexOf(uid); }
 
-void Database::loadHeader(const QJsonObject& header)
+void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& password)
 {
     QJsonObject obj = header["kdf"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
@@ -195,6 +200,8 @@ void Database::loadHeader(const QJsonObject& header)
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
     _cryptoNonce = QByteArray::fromBase64(obj["nonce"].toString().toUtf8());
     if (_cryptoNonce.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
+
+    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
 }
 
 void Database::loadData(const QByteArray& data)
@@ -215,7 +222,7 @@ void Database::loadData(const QByteArray& data)
     }
 
     array = doc.object()["entries"].toArray();
-    for (const QJsonValueRef& entryRef : array) {
+    for (const QJsonValueRef &entryRef : array) {
         DatabaseEntry entry(entryRef.toObject());
         _dbEntryKeys.append(entry.uid());
         _dbEntries[entry.uid()] = std::move(entry);

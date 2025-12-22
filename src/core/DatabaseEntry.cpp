@@ -6,8 +6,8 @@ DatabaseEntry::DatabaseEntry() : _uid(QUuid::createUuid()), _createdAt(QDateTime
 
 DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
 {
-    _uid = QUuid(obj["uuid"].toString());
-    _group = QUuid(obj["group"].toString());
+    _uid = QUuid::fromString(obj["uuid"].toString());
+    _group = QUuid::fromString(obj["group"].toString());
     _title = obj["title"].toString();
     _username = obj["username"].toString();
     _notes = obj["notes"].toString();
@@ -79,7 +79,8 @@ void DatabaseEntry::setPassword(const SecureQByteArray& password)
 QJsonObject DatabaseEntry::toJson() const
 {
     QJsonObject obj;
-    obj["uuid"] = QString(_uid.toRfc4122().data());
+    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithBraces);
+    obj["group"] = _group.toString(QUuid::StringFormat::WithBraces);
     obj["title"] = _title;
     obj["username"] = _username;
     obj["password"] = password().data();

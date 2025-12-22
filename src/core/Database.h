@@ -25,7 +25,7 @@ public:
     void load(const SecureQByteArray& password);
     void save();
     void addEntry(const QUuid& group, const QString& title, const QString& notes, const SecureQByteArray& password);
-    void addGroup(const QUuid& parent, const QString& title);
+    void addGroup(const QString& title, const QUuid* parent = nullptr);
     void removeEntry(const QUuid& uid);
     void removeGroup(const QUuid& uid);
     size_t entryCount() const;
@@ -55,7 +55,7 @@ private:
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
-    void loadHeader(const QJsonObject& header);
+    void loadHeader(const QJsonObject& header, const SecureQByteArray& password);
     void loadData(const QByteArray& data);
 };
 
