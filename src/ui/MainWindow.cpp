@@ -169,7 +169,30 @@ void MainWindow::openDatabaseSettings()
 
 void MainWindow::lockDatabase()
 {
+    QMessageBox::StandardButton button = QMessageBox::question(
+        this,
+        "?",
+        "Unsaved changes will be lost, do you want to save?",
+        (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No | QMessageBox::StandardButton::Cancel),
+        QMessageBox::StandardButton::Yes
+    );
 
+    try {
+        if (button == QMessageBox::StandardButton::Cancel)
+            return;
+        else if (button == QMessageBox::StandardButton::Yes)
+            _database->save();
+        _database = nullptr;
+        toggleDatabaseOpenState();
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::newEntry()
@@ -271,7 +294,9 @@ void MainWindow::toggleDatabaseOpenState()
 {
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
+    ui->actionDatabaseLock->setEnabled(!ui->actionDatabaseLock->isEnabled());
     ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
+    ui->pbLock->setEnabled(!ui->pbLock->isEnabled());
 
     ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
     ui->dteCreatedFromFilter->setEnabled(!ui->dteCreatedFromFilter->isEnabled());
