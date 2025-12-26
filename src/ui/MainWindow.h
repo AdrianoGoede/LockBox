@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "../core/Database.h"
+#include "../core/DatabaseGroupTreeModel.h"
 #include "../core/DatabaseEntryTableModel.h"
 #include "../core/DatabaseEntryTableProxyModel.h"
 
@@ -33,6 +34,7 @@ private slots:
     void filterEntryCreatedBefore(const QDateTime& filter);
     void filterEntryModifiedAfter(const QDateTime& filter);
     void filterEntryModifiedBefore(const QDateTime& filter);
+    void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
     void copyEntryUsername();
     void copyEntryPassword();
     void autotypeEntry();
@@ -47,6 +49,7 @@ private slots:
 private:
     Ui::MainWindow* ui;
     std::unique_ptr<Database> _database = nullptr;
+    DatabaseGroupTreeModel* _groupsModel = nullptr;
     DatabaseEntryTableModel* _entriesModel = nullptr;
     DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
     void toggleDatabaseOpenState();

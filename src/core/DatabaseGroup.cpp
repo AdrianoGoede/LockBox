@@ -6,6 +6,7 @@ DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
 {
     _uid = QUuid::fromString(jsonObj["uuid"].toString());
+    _parent = QUuid::fromString(jsonObj["parent"].toString());
     _title = jsonObj["title"].toString();
 
     if (_uid.isNull() || _title.isEmpty())
@@ -28,6 +29,7 @@ QJsonObject DatabaseGroup::toJson() const
 {
     QJsonObject obj;
     obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
+    obj["parent"] = _parent.toString(QUuid::StringFormat::WithoutBraces);
     obj["title"] = _title;
     return obj;
 }

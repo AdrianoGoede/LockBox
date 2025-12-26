@@ -34,6 +34,7 @@ public:
     const DatabaseEntry& entry(int index) const;
     const DatabaseGroup& group(const QUuid& uid) const;
     const DatabaseGroup& group(int index) const;
+    QVector<const DatabaseGroup*> childrenOfGroup(const DatabaseGroup* group) const;
     qsizetype indexOfEntry(const QUuid& uid) const;
     qsizetype indexOfGroup(const QUuid& uid) const;
 

@@ -164,19 +164,29 @@ const DatabaseEntry& Database::entry(int index) const
     return _dbEntries.find(uid).value();
 }
 
-const DatabaseGroup &Database::group(const QUuid &uid) const
+const DatabaseGroup& Database::group(const QUuid &uid) const
 {
     if (!_dbGroups.contains(uid))
         throw std::runtime_error("Group not found");
     return _dbGroups.find(uid).value();
 }
 
-const DatabaseGroup &Database::group(int index) const
+const DatabaseGroup& Database::group(int index) const
 {
     if (index >= _dbGroupKeys.size())
         throw std::runtime_error("Index out of range");
     const QUuid& uid = _dbGroupKeys[index];
     return _dbGroups.find(uid).value();
+}
+
+QVector<const DatabaseGroup*> Database::childrenOfGroup(const DatabaseGroup* group) const
+{
+    QVector<const DatabaseGroup*> children;
+    QUuid parentUuid = (group ? group->uid() : QUuid());
+    for (const DatabaseGroup& child : _dbGroups)
+        if (child.parent() == parentUuid)
+            children.append(&child);
+    return children;
 }
 
 qsizetype Database::indexOfEntry(const QUuid& uid) const { return _dbEntryKeys.indexOf(uid); }

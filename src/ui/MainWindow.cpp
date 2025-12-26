@@ -46,12 +46,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->dteModifiedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedAfter);
     connect(ui->dteModifiedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedBefore);
 
+    _groupsModel = new DatabaseGroupTreeModel(this);
+    ui->tvGroups->setModel(_groupsModel);
+
     _entriesModel = new DatabaseEntryTableModel(this);
     _entriesProxyModel = new DatabaseEntryTableProxyModel(this);
     _entriesProxyModel->setSourceModel(_entriesModel);
     ui->tvEntries->setModel(_entriesProxyModel);
     ui->tvEntries->setSortingEnabled(true);
     ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+
+    connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::filterEntriesByGroup);
 
     ui->dteCreatedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
     ui->dteCreatedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
@@ -69,6 +74,7 @@ void MainWindow::newDatabase()
 
         if (newDbForm.exec() == QDialog::DialogCode::Accepted) {
             _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay, this);
+            _groupsModel->setDatabase(_database.get());
             _entriesModel->setDatabase(_database.get());
             toggleDatabaseOpenState();
         }
@@ -123,12 +129,11 @@ void MainWindow::openDatabase()
 
         if (!ok)
             return;
-        else if (password.isEmpty()) {
+        else if (password.isEmpty())
             throw std::runtime_error("Password cannot be empty!");
-            return;
-        }
 
         _database = std::make_unique<Database>(path, password);
+        _groupsModel->setDatabase(_database.get());
         _entriesModel->setDatabase(_database.get());
         toggleDatabaseOpenState();
     }
@@ -210,34 +215,22 @@ void MainWindow::deleteEntry()
 
 }
 
-void MainWindow::filterEntryTitle(const QString& filter)
-{
-    if (_entriesProxyModel)
-        _entriesProxyModel->setTitleFilter(filter);
-}
+void MainWindow::filterEntryTitle(const QString& filter) { _entriesProxyModel->setTitleFilter(filter); }
 
-void MainWindow::filterEntryCreatedAfter(const QDateTime& filter)
-{
-    if (_entriesProxyModel)
-        _entriesProxyModel->setCreatedFromFilter(filter);
-}
+void MainWindow::filterEntryCreatedAfter(const QDateTime& filter) { _entriesProxyModel->setCreatedFromFilter(filter); }
 
-void MainWindow::filterEntryCreatedBefore(const QDateTime& filter)
-{
-    if (_entriesProxyModel)
-        _entriesProxyModel->setCreatedToFilter(filter);
-}
+void MainWindow::filterEntryCreatedBefore(const QDateTime& filter) { _entriesProxyModel->setCreatedToFilter(filter); }
 
-void MainWindow::filterEntryModifiedAfter(const QDateTime& filter)
-{
-    if (_entriesProxyModel)
-        _entriesProxyModel->setModifiedFromFilter(filter);
-}
+void MainWindow::filterEntryModifiedAfter(const QDateTime& filter) { _entriesProxyModel->setModifiedFromFilter(filter); }
 
-void MainWindow::filterEntryModifiedBefore(const QDateTime& filter)
+void MainWindow::filterEntryModifiedBefore(const QDateTime& filter) { _entriesProxyModel->setModifiedToFilter(filter); }
+
+void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous)
 {
-    if (_entriesProxyModel)
-        _entriesProxyModel->setModifiedToFilter(filter);
+    if (!current.isValid()) return;
+    const DatabaseGroup* selectedGroup = static_cast<const DatabaseGroup*>(current.internalPointer());
+    if (!selectedGroup) return;
+    _entriesProxyModel->setGroupFilter(selectedGroup->uid());
 }
 
 void MainWindow::copyEntryUsername()
