@@ -35,8 +35,9 @@ private slots:
     void filterEntryModifiedAfter(const QDateTime& filter);
     void filterEntryModifiedBefore(const QDateTime& filter);
     void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
-    void copyEntryUsername();
-    void copyEntryPassword();
+    void openEntryManager(const DatabaseEntry* entry);
+    void copyEntryUsername(const DatabaseEntry* entry = nullptr);
+    void copyEntryPassword(const DatabaseEntry* entry = nullptr);
     void autotypeEntry();
     void newGroup();
     void editGroup();
@@ -52,7 +53,14 @@ private:
     DatabaseGroupTreeModel* _groupsModel = nullptr;
     DatabaseEntryTableModel* _entriesModel = nullptr;
     DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
+    void configureMenuBar();
+    void configureButtonBar();
+    void configureFilterBar();
+    void configureGroupsTree();
+    void configureEntryTable();
+    void setDefaultFilters();
     void toggleDatabaseOpenState();
+    void copyTextToClipboard(const QByteArray& text, int seconds = Config::constants::DEFAULT_CLIPBOARD_TIME);
 };
 
 #endif // MAINWINDOW_H

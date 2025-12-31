@@ -20,6 +20,7 @@ namespace Config::constants {
     inline constexpr int DEFAULT_KDF_MEMORY = 64;
     inline constexpr int DEFAULT_KDF_ITERATIONS = 3;
     inline constexpr int DEFAULT_KDF_PARALLELISM = 4;
+    inline constexpr int DEFAULT_CLIPBOARD_TIME = 10;
 
     inline constexpr char PASSWD_GEN_UPPERCASE_LETTERS[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     inline constexpr char PASSWD_GEN_LOWERCASE_LETTERS[] = "abcdefghijklmnopqrstuvwxyz";

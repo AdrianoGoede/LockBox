@@ -1,4 +1,5 @@
 #include "DatabaseEntryTableModel.h"
+#include <QPushButton>
 
 DatabaseEntryTableModel::DatabaseEntryTableModel(QObject* parent) : QAbstractTableModel{parent} {}
 
@@ -22,7 +23,6 @@ QVariant DatabaseEntryTableModel::data(const QModelIndex& index, int role) const
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-            case DatabaseEntryModelColumns::Uid: return entry.uid().toString(QUuid::StringFormat::WithoutBraces);
             case DatabaseEntryModelColumns::Title: return entry.title();
             case DatabaseEntryModelColumns::CreatedAt: return entry.createdAt();
             case DatabaseEntryModelColumns::ModifiedAt: return entry.modifiedAt();
@@ -41,18 +41,21 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
 
     switch (section) {
         case DatabaseEntryModelColumns::Title: return "Title";
-        case DatabaseEntryModelColumns::CreatedAt: return "Created At";
+        case DatabaseEntryModelColumns::CreatedAt: return "Creation";
         case DatabaseEntryModelColumns::ModifiedAt: return "Modified At";
-        case DatabaseEntryModelColumns::Uid: return "Entry UUID";
+        case DatabaseEntryModelColumns::Manage: return "Manage";
+        case DatabaseEntryModelColumns::CopyUsername: return "User";
+        case DatabaseEntryModelColumns::CopyPassword: return "Passw.";
+        case DatabaseEntryModelColumns::PerformAutotype: return "Autotype";
         default: return QVariant();
     }
 }
 
-void DatabaseEntryTableModel::addEntry(const QUuid& group, const QString& title, const QString& notes, const SecureQByteArray& password)
+void DatabaseEntryTableModel::addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username, const SecureQByteArray& password)
 {
     if (!_database) return;
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
-    _database->addEntry(group, title, notes, password);
+    _database->addEntry(group, title, notes, username, password);
     endInsertRows();
 }
 

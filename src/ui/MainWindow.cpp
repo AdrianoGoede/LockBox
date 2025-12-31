@@ -1,67 +1,22 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "NewDatabase.h"
+#include "../core/EntryActionButtonDelegate.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
+#include <QClipboard>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
-    connect(ui->actionDatabaseNew, &QAction::triggered, this, &MainWindow::newDatabase);
-    connect(ui->actionDatabaseOpen, &QAction::triggered, this, &MainWindow::openDatabase);
-    connect(ui->actionDatabaseSave, &QAction::triggered, this, &MainWindow::saveDatabase);
-    connect(ui->actionDatabaseSaveAs, &QAction::triggered, this, &MainWindow::saveDatabaseAs);
-    connect(ui->actionDatabaseSettings, &QAction::triggered, this, &MainWindow::openDatabaseSettings);
-    connect(ui->actionDatabaseLock, &QAction::triggered, this, &MainWindow::lockDatabase);
-    connect(ui->actionEntriesNew, &QAction::triggered, this, &MainWindow::newEntry);
-    connect(ui->actionEntriesEdit, &QAction::triggered, this, &MainWindow::editEntry);
-    connect(ui->actionEntriesDelete, &QAction::triggered, this, &MainWindow::deleteEntry);
-    connect(ui->actionEntriesCopyUsername, &QAction::triggered, this, &MainWindow::copyEntryUsername);
-    connect(ui->actionEntriesCopyPassword, &QAction::triggered, this, &MainWindow::copyEntryPassword);
-    connect(ui->actionGroupsNew, &QAction::triggered, this, &MainWindow::newGroup);
-    connect(ui->actionGroupsEdit, &QAction::triggered, this, &MainWindow::editGroup);
-    connect(ui->actionGroupsDelete, &QAction::triggered, this, &MainWindow::deleteGroup);
-    connect(ui->actionToolsPasswordGenerator, &QAction::triggered, this, &MainWindow::openPasswordGenerator);
-    connect(ui->actionToolsAppSettings, &QAction::triggered, this, &MainWindow::openAppSettings);
-    connect(ui->actionHelpGithubRepo, &QAction::triggered, this, &MainWindow::openRepo);
-    connect(ui->actionHelpAbout, &QAction::triggered, this, &MainWindow::openAboutPage);
-
-    connect(ui->pbSave, &QAbstractButton::clicked, this, &MainWindow::saveDatabase);
-    connect(ui->pbLock, &QAbstractButton::clicked, this, &MainWindow::lockDatabase);
-    connect(ui->pbAddEntry, &QAbstractButton::clicked, this, &MainWindow::newEntry);
-    connect(ui->pbEditEntry, &QAbstractButton::clicked, this, &MainWindow::editEntry);
-    connect(ui->pbDeleteEntry, &QAbstractButton::clicked, this, &MainWindow::deleteEntry);
-    connect(ui->pbCopyUsername, &QAbstractButton::clicked, this, &MainWindow::copyEntryUsername);
-    connect(ui->pbCopyPassword, &QAbstractButton::clicked, this, &MainWindow::copyEntryPassword);
-    connect(ui->pbAutotype, &QAbstractButton::clicked, this, &MainWindow::autotypeEntry);
-    connect(ui->pbPasswordGenerator, &QAbstractButton::clicked, this, &MainWindow::openPasswordGenerator);
-    connect(ui->pbDatabaseSettings, &QAbstractButton::clicked, this, &MainWindow::openDatabaseSettings);
-    connect(ui->pbAppSettings, &QAbstractButton::clicked, this, &MainWindow::openAppSettings);
-
-    connect(ui->leEntryTitleFilter, &QLineEdit::textChanged, this, &MainWindow::filterEntryTitle);
-    connect(ui->dteCreatedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedAfter);
-    connect(ui->dteCreatedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedBefore);
-    connect(ui->dteModifiedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedAfter);
-    connect(ui->dteModifiedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedBefore);
-
-    _groupsModel = new DatabaseGroupTreeModel(this);
-    ui->tvGroups->setModel(_groupsModel);
-
-    _entriesModel = new DatabaseEntryTableModel(this);
-    _entriesProxyModel = new DatabaseEntryTableProxyModel(this);
-    _entriesProxyModel->setSourceModel(_entriesModel);
-    ui->tvEntries->setModel(_entriesProxyModel);
-    ui->tvEntries->setSortingEnabled(true);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-
-    connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::filterEntriesByGroup);
-
-    ui->dteCreatedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
-    ui->dteCreatedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
-    ui->dteModifiedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
-    ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
+    configureMenuBar();
+    configureButtonBar();
+    configureFilterBar();
+    configureEntryTable();
+    configureGroupsTree();
+    setDefaultFilters();
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -188,6 +143,8 @@ void MainWindow::lockDatabase()
         else if (button == QMessageBox::StandardButton::Yes)
             _database->save();
         _database = nullptr;
+        _groupsModel->setDatabase(_database.get());
+        _entriesModel->setDatabase(_database.get());
         toggleDatabaseOpenState();
     }
     catch (const std::runtime_error& error) {
@@ -233,14 +190,21 @@ void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIn
     _entriesProxyModel->setGroupFilter(selectedGroup->uid());
 }
 
-void MainWindow::copyEntryUsername()
+void MainWindow::openEntryManager(const DatabaseEntry* entry)
 {
-
+    if (!entry) return;
 }
 
-void MainWindow::copyEntryPassword()
+void MainWindow::copyEntryUsername(const DatabaseEntry* entry)
 {
+    if (!entry) return;
+    copyTextToClipboard(entry->username().toUtf8());
+}
 
+void MainWindow::copyEntryPassword(const DatabaseEntry* entry)
+{
+    if (!entry) return;
+    copyTextToClipboard(entry->password());
 }
 
 void MainWindow::autotypeEntry()
@@ -283,6 +247,96 @@ void MainWindow::openAboutPage()
 
 }
 
+void MainWindow::configureMenuBar()
+{
+    connect(ui->actionDatabaseNew, &QAction::triggered, this, &MainWindow::newDatabase);
+    connect(ui->actionDatabaseOpen, &QAction::triggered, this, &MainWindow::openDatabase);
+    connect(ui->actionDatabaseSave, &QAction::triggered, this, &MainWindow::saveDatabase);
+    connect(ui->actionDatabaseSaveAs, &QAction::triggered, this, &MainWindow::saveDatabaseAs);
+    connect(ui->actionDatabaseSettings, &QAction::triggered, this, &MainWindow::openDatabaseSettings);
+    connect(ui->actionDatabaseLock, &QAction::triggered, this, &MainWindow::lockDatabase);
+    connect(ui->actionEntriesNew, &QAction::triggered, this, &MainWindow::newEntry);
+    connect(ui->actionEntriesEdit, &QAction::triggered, this, &MainWindow::editEntry);
+    connect(ui->actionEntriesDelete, &QAction::triggered, this, &MainWindow::deleteEntry);
+    connect(ui->actionGroupsNew, &QAction::triggered, this, &MainWindow::newGroup);
+    connect(ui->actionGroupsEdit, &QAction::triggered, this, &MainWindow::editGroup);
+    connect(ui->actionGroupsDelete, &QAction::triggered, this, &MainWindow::deleteGroup);
+    connect(ui->actionToolsPasswordGenerator, &QAction::triggered, this, &MainWindow::openPasswordGenerator);
+    connect(ui->actionToolsAppSettings, &QAction::triggered, this, &MainWindow::openAppSettings);
+    connect(ui->actionHelpGithubRepo, &QAction::triggered, this, &MainWindow::openRepo);
+    connect(ui->actionHelpAbout, &QAction::triggered, this, &MainWindow::openAboutPage);
+}
+
+void MainWindow::configureButtonBar()
+{
+    connect(ui->pbSave, &QAbstractButton::clicked, this, &MainWindow::saveDatabase);
+    connect(ui->pbLock, &QAbstractButton::clicked, this, &MainWindow::lockDatabase);
+    connect(ui->pbAddEntry, &QAbstractButton::clicked, this, &MainWindow::newEntry);
+    connect(ui->pbEditEntry, &QAbstractButton::clicked, this, &MainWindow::editEntry);
+    connect(ui->pbDeleteEntry, &QAbstractButton::clicked, this, &MainWindow::deleteEntry);
+    connect(ui->pbPasswordGenerator, &QAbstractButton::clicked, this, &MainWindow::openPasswordGenerator);
+    connect(ui->pbDatabaseSettings, &QAbstractButton::clicked, this, &MainWindow::openDatabaseSettings);
+    connect(ui->pbAppSettings, &QAbstractButton::clicked, this, &MainWindow::openAppSettings);
+}
+
+void MainWindow::configureFilterBar()
+{
+    connect(ui->leEntryTitleFilter, &QLineEdit::textChanged, this, &MainWindow::filterEntryTitle);
+    connect(ui->dteCreatedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedAfter);
+    connect(ui->dteCreatedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedBefore);
+    connect(ui->dteModifiedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedAfter);
+    connect(ui->dteModifiedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedBefore);
+}
+
+void MainWindow::configureGroupsTree()
+{
+    _groupsModel = new DatabaseGroupTreeModel(this);
+    ui->tvGroups->setModel(_groupsModel);
+    connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::filterEntriesByGroup);
+}
+
+void MainWindow::configureEntryTable()
+{
+    _entriesModel = new DatabaseEntryTableModel(this);
+    _entriesProxyModel = new DatabaseEntryTableProxyModel(this);
+    _entriesProxyModel->setSourceModel(_entriesModel);
+    ui->tvEntries->setModel(_entriesProxyModel);
+    ui->tvEntries->setSortingEnabled(true);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
+
+    EntryActionButtonDelegate* manageEntryButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("zoom-in"), this);
+    ui->tvEntries->setItemDelegateForColumn(3, manageEntryButtonDelegate);
+    ui->tvEntries->setColumnWidth(3, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
+    connect(manageEntryButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::openEntryManager);
+
+    EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
+    ui->tvEntries->setItemDelegateForColumn(4, copyUsernameButtonDelegate);
+    ui->tvEntries->setColumnWidth(4, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
+    connect(copyUsernameButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryUsername);
+
+    EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
+    ui->tvEntries->setItemDelegateForColumn(5, copyPasswordButtonDelegate);
+    ui->tvEntries->setColumnWidth(5, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
+    connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
+
+    EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);
+    ui->tvEntries->setItemDelegateForColumn(6, performAutotypeButtonDelegate);
+    ui->tvEntries->setColumnWidth(6, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeMode::Fixed);
+    connect(performAutotypeButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::autotypeEntry);
+}
+
+void MainWindow::setDefaultFilters()
+{
+    ui->dteCreatedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
+    ui->dteCreatedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
+    ui->dteModifiedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
+    ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
+}
+
 void MainWindow::toggleDatabaseOpenState()
 {
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
@@ -296,4 +350,16 @@ void MainWindow::toggleDatabaseOpenState()
     ui->dteCreatedToFilter->setEnabled(!ui->dteCreatedToFilter->isEnabled());
     ui->dteModifiedFromFilter->setEnabled(!ui->dteModifiedFromFilter->isEnabled());
     ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
+}
+
+void MainWindow::copyTextToClipboard(const QByteArray& text, int seconds)
+{
+    QClipboard* clipboard = QGuiApplication::clipboard();
+    if (clipboard && !text.isEmpty()) {
+        clipboard->setText(text);
+        QTimer::singleShot((seconds * 1000), clipboard, [clipboard, text]() {
+            if (clipboard->text().toUtf8() == text)
+                clipboard->clear();
+        });
+    }
 }

@@ -100,12 +100,13 @@ void Database::save()
     }
 }
 
-void Database::addEntry(const QUuid& group, const QString& title, const QString& notes, const SecureQByteArray& password)
+void Database::addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username,const SecureQByteArray& password)
 {
     DatabaseEntry entry;
     entry.setGroup(group);
     entry.setTitle(title);
     entry.setNotes(notes);
+    entry.setUsername(username);
     entry.setPassword(password);
 
     _dbEntryKeys.append(entry.uid());
