@@ -9,6 +9,7 @@ class DatabaseGroup
 {
 public:
     DatabaseGroup();
+    DatabaseGroup(const QUuid& uid);
     DatabaseGroup(const QJsonObject& jsonObj);
     QUuid uid() const;
     QUuid parent() const;

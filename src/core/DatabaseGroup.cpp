@@ -3,6 +3,8 @@
 
 DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 
+DatabaseGroup::DatabaseGroup(const QUuid& uid) : _uid(uid) {}
+
 DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
 {
     _uid = QUuid::fromString(jsonObj["uuid"].toString());

@@ -25,7 +25,9 @@ public:
     void load(const SecureQByteArray& password);
     void save();
     void addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username, const SecureQByteArray& password);
+    void addGroup(const DatabaseGroup& group);
     void addGroup(const QString& title, const QUuid* parent = nullptr);
+    void editGroup(const DatabaseGroup& group);
     void removeEntry(const QUuid& uid);
     void removeGroup(const QUuid& uid);
     size_t entryCount() const;
@@ -35,6 +37,7 @@ public:
     const DatabaseGroup& group(const QUuid& uid) const;
     const DatabaseGroup& group(int index) const;
     QVector<const DatabaseGroup*> childrenOfGroup(const DatabaseGroup* group) const;
+    QVector<QUuid> entriesOfGroup(const QUuid& group) const;
     qsizetype indexOfEntry(const QUuid& uid) const;
     qsizetype indexOfGroup(const QUuid& uid) const;
 

@@ -1,0 +1,30 @@
+#ifndef DATABASEGROUPMANAGER_H
+#define DATABASEGROUPMANAGER_H
+
+#include <QDialog>
+#include <QAbstractButton>
+#include "../core/DatabaseGroup.h"
+
+namespace Ui {
+    class DatabaseGroupManager;
+}
+
+class DatabaseGroupManager : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit DatabaseGroupManager(DatabaseGroup* group, const DatabaseGroup* existingGroup = nullptr, const DatabaseGroup* parentGroup = nullptr, QWidget* parent = nullptr);
+    ~DatabaseGroupManager();
+
+private slots:
+    void accept() override;
+
+private:
+    Ui::DatabaseGroupManager* ui;
+    DatabaseGroup* _group;
+    const DatabaseGroup* _existingGroup = nullptr;
+    const DatabaseGroup* _parentGroup = nullptr;
+};
+
+#endif // DATABASEGROUPMANAGER_H

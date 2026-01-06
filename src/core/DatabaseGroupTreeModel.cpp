@@ -70,12 +70,26 @@ QVariant DatabaseGroupTreeModel::data(const QModelIndex& index, int role) const
     }
 }
 
+void DatabaseGroupTreeModel::addGroup(const DatabaseGroup& group)
+{
+    if (!_database) return;
+    beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
+    _database->addGroup(group);
+    endInsertRows();
+}
+
 void DatabaseGroupTreeModel::addGroup(const QString& title, const QUuid* parent)
 {
     if (!_database) return;
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
     _database->addGroup(title, parent);
     endInsertRows();
+}
+
+void DatabaseGroupTreeModel::editGroup(const DatabaseGroup& group)
+{
+    if (!_database) return;
+    _database->editGroup(group);
 }
 
 void DatabaseGroupTreeModel::removeGroup(const QUuid& uid)

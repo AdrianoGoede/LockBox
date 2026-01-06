@@ -2,6 +2,7 @@
 #include "ui_MainWindow.h"
 #include "NewDatabase.h"
 #include "../core/EntryActionButtonDelegate.h"
+#include "DatabaseGroupManager.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -184,6 +185,10 @@ void MainWindow::filterEntryModifiedBefore(const QDateTime& filter) { _entriesPr
 
 void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous)
 {
+    ui->actionGroupsNew->setEnabled(current.isValid());
+    ui->actionGroupsEdit->setEnabled(current.isValid());
+    ui->actionGroupsDelete->setEnabled(current.isValid());
+
     if (!current.isValid()) return;
     const DatabaseGroup* selectedGroup = static_cast<const DatabaseGroup*>(current.internalPointer());
     if (!selectedGroup) return;
@@ -214,17 +219,76 @@ void MainWindow::autotypeEntry()
 
 void MainWindow::newGroup()
 {
+    try {
+        QModelIndex index = ui->tvGroups->currentIndex();
+        if (!index.isValid()) return;
+        const DatabaseGroup* parentGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
+        DatabaseGroup group;
+        DatabaseGroupManager manager(&group, nullptr, parentGroup, this);
 
+        if (manager.exec() == QDialog::DialogCode::Accepted)
+            _groupsModel->addGroup(group);
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::editGroup()
 {
+    try {
+        QModelIndex index = ui->tvGroups->currentIndex();
+        if (!index.isValid()) return;
+        const DatabaseGroup* existingGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
+        if (!existingGroup) return;
+        const DatabaseGroup* parentGroup = (!existingGroup->parent().isNull() ? &_database->group(existingGroup->parent()) : nullptr);
+        DatabaseGroup group(existingGroup->uid());
+        DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
 
+        if (manager.exec() == QDialog::DialogCode::Accepted)
+            _groupsModel->editGroup(group);
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::deleteGroup()
 {
+    try {
+        QModelIndex index = ui->tvGroups->currentIndex();
+        if (!index.isValid()) return;
+        const DatabaseGroup* group = static_cast<const DatabaseGroup*>(index.internalPointer());
+        if (!group) return;
 
+        QMessageBox::StandardButton button = QMessageBox::question(
+            this,
+            "?",
+            QString("Are you sure you want to delete group '%1' and all it's entries?").arg(group->title().trimmed()),
+            (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No),
+            QMessageBox::StandardButton::No
+        );
+        if (button == QMessageBox::StandardButton::Yes)
+            _groupsModel->removeGroup(group->uid());
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::openPasswordGenerator()
@@ -342,6 +406,9 @@ void MainWindow::toggleDatabaseOpenState()
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
     ui->actionDatabaseLock->setEnabled(!ui->actionDatabaseLock->isEnabled());
+
+    ui->menuGroups->setEnabled(!ui->menuGroups->isEnabled());
+
     ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
     ui->pbLock->setEnabled(!ui->pbLock->isEnabled());
 

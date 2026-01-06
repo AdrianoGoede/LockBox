@@ -115,6 +115,19 @@ void Database::addEntry(const QUuid& group, const QString& title, const QString&
     emit entryAdded(_dbEntryKeys.size() - 1);
 }
 
+void Database::addGroup(const DatabaseGroup& group)
+{
+    if (_dbGroups.contains(group.uid()))
+        throw std::runtime_error("Group already exists");
+    if (group.title().trimmed().isEmpty())
+        throw std::runtime_error("Group must have a name");
+
+    _dbGroupKeys.append(group.uid());
+    _dbGroups[group.uid()] = group;
+
+    emit groupAdded(_dbGroupKeys.size() - 1);
+}
+
 void Database::addGroup(const QString& title, const QUuid* parent)
 {
     DatabaseGroup group;
@@ -126,6 +139,13 @@ void Database::addGroup(const QString& title, const QUuid* parent)
     _dbGroups[group.uid()] = std::move(group);
 
     emit groupAdded(_dbGroupKeys.size() - 1);
+}
+
+void Database::editGroup(const DatabaseGroup& group)
+{
+    if (!_dbGroups.contains(group.uid()))
+        throw std::runtime_error("Group does not exist!");
+    _dbGroups[group.uid()] = group;
 }
 
 void Database::removeEntry(const QUuid& uid)
@@ -141,6 +161,12 @@ void Database::removeGroup(const QUuid& uid)
 {
     qsizetype row = _dbGroupKeys.indexOf(uid);
     if (row < 0) return;
+
+    for (const QUuid& entry : entriesOfGroup(uid)) {
+        _dbEntryKeys.removeOne(entry);
+        _dbEntries.remove(entry);
+    }
+
     _dbGroupKeys.removeAt(row);
     _dbGroups.remove(uid);
     emit groupRemoved(row);
@@ -188,6 +214,16 @@ QVector<const DatabaseGroup*> Database::childrenOfGroup(const DatabaseGroup* gro
         if (child.parent() == parentUuid)
             children.append(&child);
     return children;
+}
+
+QVector<QUuid> Database::entriesOfGroup(const QUuid& group) const
+{
+    QVector<QUuid> results;
+    for (const DatabaseEntry& entry : _dbEntries) {
+        if (entry.group() == group)
+            results.append(entry.uid());
+    }
+    return results;
 }
 
 qsizetype Database::indexOfEntry(const QUuid& uid) const { return _dbEntryKeys.indexOf(uid); }

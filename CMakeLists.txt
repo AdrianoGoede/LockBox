@@ -55,6 +55,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/core/DatabaseGroupTreeModel.cpp
         src/core/EntryActionButtonDelegate.h
         src/core/EntryActionButtonDelegate.cpp
+        src/ui/DatabaseGroupManager.h
+        src/ui/DatabaseGroupManager.cpp
+        src/ui/DatabaseGroupManager.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
