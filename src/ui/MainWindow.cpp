@@ -3,6 +3,7 @@
 #include "NewDatabase.h"
 #include "../core/EntryActionButtonDelegate.h"
 #include "DatabaseGroupManager.h"
+#include "DatabaseEntryManager.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -158,14 +159,15 @@ void MainWindow::lockDatabase()
     }
 }
 
-void MainWindow::newEntry()
-{
-
-}
+void MainWindow::newEntry() { openEntryManager(nullptr); }
 
 void MainWindow::editEntry()
 {
-
+    QModelIndex index = ui->tvEntries->currentIndex();
+    if (!index.isValid()) return;
+    const DatabaseEntry* entry = index.data(Qt::UserRole + 1).value<const DatabaseEntry*>();
+    if (!entry) return;
+    openEntryManager(entry);
 }
 
 void MainWindow::deleteEntry()
@@ -195,9 +197,31 @@ void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIn
     _entriesProxyModel->setGroupFilter(selectedGroup->uid());
 }
 
-void MainWindow::openEntryManager(const DatabaseEntry* entry)
+void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
 {
-    if (!entry) return;
+    try {
+        QModelIndex index = ui->tvGroups->currentIndex();
+        if (!index.isValid()) return;
+        const DatabaseGroup* group = (existingEntry ? &_database->group(existingEntry->group()) : static_cast<const DatabaseGroup*>(index.internalPointer()));
+        if (!group) return;
+        DatabaseEntry entry;
+        DatabaseEntryManager manager(&entry, group, existingEntry, this);
+
+        if (manager.exec() == QDialog::DialogCode::Accepted) {
+            if (existingEntry)
+                _entriesModel->editEntry(entry);
+            else
+                _entriesModel->addEntry(entry);
+        }
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::copyEntryUsername(const DatabaseEntry* entry)
@@ -407,6 +431,7 @@ void MainWindow::toggleDatabaseOpenState()
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
     ui->actionDatabaseLock->setEnabled(!ui->actionDatabaseLock->isEnabled());
 
+    ui->menuEntries->setEnabled(!ui->menuEntries->isEnabled());
     ui->menuGroups->setEnabled(!ui->menuGroups->isEnabled());
 
     ui->pbSave->setEnabled(!ui->pbSave->isEnabled());

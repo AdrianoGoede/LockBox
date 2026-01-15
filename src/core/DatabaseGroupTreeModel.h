@@ -17,7 +17,6 @@ public:
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
     void addGroup(const DatabaseGroup& group);
-    void addGroup(const QString& title, const QUuid* parent = nullptr);
     void editGroup(const DatabaseGroup& group);
     void removeGroup(const QUuid& uid);
 

@@ -100,17 +100,17 @@ void Database::save()
     }
 }
 
-void Database::addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username,const SecureQByteArray& password)
+void Database::addEntry(const DatabaseEntry& entry)
 {
-    DatabaseEntry entry;
-    entry.setGroup(group);
-    entry.setTitle(title);
-    entry.setNotes(notes);
-    entry.setUsername(username);
-    entry.setPassword(password);
+    if (_dbEntries.contains(entry.uid()))
+        throw std::runtime_error("Entry already exists");
+    if (entry.title().trimmed().isEmpty())
+        throw std::runtime_error("Entry must have a title");
+    if (entry.group().isNull())
+        throw std::runtime_error("Entry must have a valid parent");
 
     _dbEntryKeys.append(entry.uid());
-    _dbEntries[entry.uid()] = std::move(entry);
+    _dbEntries[entry.uid()] = entry;
 
     emit entryAdded(_dbEntryKeys.size() - 1);
 }
@@ -128,17 +128,11 @@ void Database::addGroup(const DatabaseGroup& group)
     emit groupAdded(_dbGroupKeys.size() - 1);
 }
 
-void Database::addGroup(const QString& title, const QUuid* parent)
+void Database::editEntry(const DatabaseEntry& entry)
 {
-    DatabaseGroup group;
-    if (parent && !parent->isNull())
-        group.setParent(*parent);
-    group.setTitle(title);
-
-    _dbGroupKeys.append(group.uid());
-    _dbGroups[group.uid()] = std::move(group);
-
-    emit groupAdded(_dbGroupKeys.size() - 1);
+    if (!_dbEntries.contains(entry.uid()))
+        throw std::runtime_error("Entry does not exist");
+    _dbEntries[entry.uid()] = entry;
 }
 
 void Database::editGroup(const DatabaseGroup& group)

@@ -51,12 +51,18 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
     }
 }
 
-void DatabaseEntryTableModel::addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username, const SecureQByteArray& password)
+void DatabaseEntryTableModel::addEntry(const DatabaseEntry& entry)
 {
     if (!_database) return;
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
-    _database->addEntry(group, title, notes, username, password);
+    _database->addEntry(entry);
     endInsertRows();
+}
+
+void DatabaseEntryTableModel::editEntry(const DatabaseEntry& entry)
+{
+    if (!_database) return;
+    _database->editEntry(entry);
 }
 
 void DatabaseEntryTableModel::removeEntry(const QUuid& uid)

@@ -35,7 +35,7 @@ private slots:
     void filterEntryModifiedAfter(const QDateTime& filter);
     void filterEntryModifiedBefore(const QDateTime& filter);
     void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
-    void openEntryManager(const DatabaseEntry* entry);
+    void openEntryManager(const DatabaseEntry* existingEntry);
     void copyEntryUsername(const DatabaseEntry* entry = nullptr);
     void copyEntryPassword(const DatabaseEntry* entry = nullptr);
     void autotypeEntry();

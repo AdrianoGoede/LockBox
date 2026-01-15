@@ -24,9 +24,9 @@ public:
     void create(const SecureQByteArray& password, std::chrono::milliseconds unlockDelay);
     void load(const SecureQByteArray& password);
     void save();
-    void addEntry(const QUuid& group, const QString& title, const QString& notes, const QString& username, const SecureQByteArray& password);
+    void addEntry(const DatabaseEntry& entry);
     void addGroup(const DatabaseGroup& group);
-    void addGroup(const QString& title, const QUuid* parent = nullptr);
+    void editEntry(const DatabaseEntry& entry);
     void editGroup(const DatabaseGroup& group);
     void removeEntry(const QUuid& uid);
     void removeGroup(const QUuid& uid);

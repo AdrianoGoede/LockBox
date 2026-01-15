@@ -58,6 +58,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/ui/DatabaseGroupManager.h
         src/ui/DatabaseGroupManager.cpp
         src/ui/DatabaseGroupManager.ui
+        src/ui/DatabaseEntryManager.h
+        src/ui/DatabaseEntryManager.cpp
+        src/ui/DatabaseEntryManager.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

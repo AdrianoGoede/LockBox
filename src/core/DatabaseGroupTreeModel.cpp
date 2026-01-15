@@ -78,14 +78,6 @@ void DatabaseGroupTreeModel::addGroup(const DatabaseGroup& group)
     endInsertRows();
 }
 
-void DatabaseGroupTreeModel::addGroup(const QString& title, const QUuid* parent)
-{
-    if (!_database) return;
-    beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
-    _database->addGroup(title, parent);
-    endInsertRows();
-}
-
 void DatabaseGroupTreeModel::editGroup(const DatabaseGroup& group)
 {
     if (!_database) return;
