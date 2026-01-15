@@ -42,12 +42,12 @@ public:
     qsizetype indexOfGroup(const QUuid& uid) const;
 
 signals:
-    void entryAdded(qsizetype row);
-    void entryRemoved(qsizetype row);
-    void entryChanged(qsizetype row);
-    void groupAdded(qsizetype row);
-    void groupRemoved(qsizetype row);
-    void groupChanged(qsizetype row);
+    void entryAdded(qsizetype row, QUuid entryUuid);
+    void entryRemoved(qsizetype row, QUuid entryUuid);
+    void entryEdited(qsizetype row, QUuid entryUuid);
+    void groupAdded(qsizetype row, QUuid groupUuid);
+    void groupRemoved(qsizetype row, QUuid groupUuid);
+    void groupEdited(qsizetype row, QUuid groupUuid);
     void databaseCleared();
 
 private:

@@ -112,7 +112,7 @@ void Database::addEntry(const DatabaseEntry& entry)
     _dbEntryKeys.append(entry.uid());
     _dbEntries[entry.uid()] = entry;
 
-    emit entryAdded(_dbEntryKeys.size() - 1);
+    emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
 }
 
 void Database::addGroup(const DatabaseGroup& group)
@@ -124,8 +124,7 @@ void Database::addGroup(const DatabaseGroup& group)
 
     _dbGroupKeys.append(group.uid());
     _dbGroups[group.uid()] = group;
-
-    emit groupAdded(_dbGroupKeys.size() - 1);
+    emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
 }
 
 void Database::editEntry(const DatabaseEntry& entry)
@@ -133,6 +132,7 @@ void Database::editEntry(const DatabaseEntry& entry)
     if (!_dbEntries.contains(entry.uid()))
         throw std::runtime_error("Entry does not exist");
     _dbEntries[entry.uid()] = entry;
+    emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
 
 void Database::editGroup(const DatabaseGroup& group)
@@ -140,6 +140,7 @@ void Database::editGroup(const DatabaseGroup& group)
     if (!_dbGroups.contains(group.uid()))
         throw std::runtime_error("Group does not exist!");
     _dbGroups[group.uid()] = group;
+    emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
 }
 
 void Database::removeEntry(const QUuid& uid)
@@ -148,7 +149,7 @@ void Database::removeEntry(const QUuid& uid)
     if (row < 0) return;
     _dbEntryKeys.removeAt(row);
     _dbEntries.remove(uid);
-    emit entryRemoved(row);
+    emit entryRemoved(row, uid);
 }
 
 void Database::removeGroup(const QUuid& uid)
@@ -163,7 +164,7 @@ void Database::removeGroup(const QUuid& uid)
 
     _dbGroupKeys.removeAt(row);
     _dbGroups.remove(uid);
-    emit groupRemoved(row);
+    emit groupRemoved(row, uid);
 }
 
 size_t Database::entryCount() const { return _dbEntries.size(); }

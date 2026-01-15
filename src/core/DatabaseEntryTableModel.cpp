@@ -6,7 +6,17 @@ DatabaseEntryTableModel::DatabaseEntryTableModel(QObject* parent) : QAbstractTab
 void DatabaseEntryTableModel::setDatabase(Database* database)
 {
     beginResetModel();
+
+    if (_database)
+        disconnect(_database, nullptr, this, nullptr);
     _database = database;
+
+    if (_database) {
+        connect(_database, &Database::entryAdded, this, &DatabaseEntryTableModel::entryAdded);
+        connect(_database, &Database::entryEdited, this, &DatabaseEntryTableModel::entryEdited);
+        connect(_database, &Database::entryRemoved, this, &DatabaseEntryTableModel::entryRemoved);
+    }
+
     endResetModel();
 }
 
@@ -51,27 +61,23 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
     }
 }
 
-void DatabaseEntryTableModel::addEntry(const DatabaseEntry& entry)
+void DatabaseEntryTableModel::entryAdded(qsizetype row, QUuid entryUuid)
 {
-    if (!_database) return;
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
-    _database->addEntry(entry);
     endInsertRows();
 }
 
-void DatabaseEntryTableModel::editEntry(const DatabaseEntry& entry)
+void DatabaseEntryTableModel::entryEdited(qsizetype row, QUuid entryUuid)
 {
-    if (!_database) return;
-    _database->editEntry(entry);
+    if (row < 0 || row > rowCount())
+        return;
+    QModelIndex topLeft = index(row, 0);
+    QModelIndex bottomRight = index(row, (columnCount() - 1));
+    emit dataChanged(topLeft, bottomRight, { Qt::DisplayRole, Qt::EditRole });
 }
 
-void DatabaseEntryTableModel::removeEntry(const QUuid& uid)
+void DatabaseEntryTableModel::entryRemoved(qsizetype row, QUuid entryUuid)
 {
-    if (!_database) return;
-    qsizetype index = _database->indexOfEntry(uid);
-    if (index < 0) return;
-
-    beginRemoveRows(QModelIndex(), index, index);
-    _database->removeEntry(uid);
+    beginRemoveRows(QModelIndex(), row, row);
     endRemoveRows();
 }

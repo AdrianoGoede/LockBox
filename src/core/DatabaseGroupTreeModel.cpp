@@ -3,10 +3,20 @@
 
 DatabaseGroupTreeModel::DatabaseGroupTreeModel(QObject* parent) : QAbstractItemModel(parent) {}
 
-void DatabaseGroupTreeModel::setDatabase(Database *database)
+void DatabaseGroupTreeModel::setDatabase(Database* database)
 {
     beginResetModel();
+
+    if (_database)
+        disconnect(_database, nullptr, this, nullptr);
     _database = database;
+
+    if (_database) {
+        connect(_database, &Database::groupAdded, this, &DatabaseGroupTreeModel::groupAdded);
+        connect(_database, &Database::groupEdited, this, &DatabaseGroupTreeModel::groupEdited);
+        connect(_database, &Database::groupRemoved, this, &DatabaseGroupTreeModel::groupRemoved);
+    }
+
     endResetModel();
 }
 
@@ -70,27 +80,23 @@ QVariant DatabaseGroupTreeModel::data(const QModelIndex& index, int role) const
     }
 }
 
-void DatabaseGroupTreeModel::addGroup(const DatabaseGroup& group)
+void DatabaseGroupTreeModel::groupAdded(qsizetype row, QUuid groupUuid)
 {
-    if (!_database) return;
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
-    _database->addGroup(group);
     endInsertRows();
 }
 
-void DatabaseGroupTreeModel::editGroup(const DatabaseGroup& group)
+void DatabaseGroupTreeModel::groupEdited(qsizetype row, QUuid groupUuid)
 {
-    if (!_database) return;
-    _database->editGroup(group);
+    if (row < 0 || row > rowCount())
+        return;
+    QModelIndex topLeft = index(row, 0);
+    QModelIndex bottomRight = index(row, (columnCount() - 1));
+    emit dataChanged(topLeft, bottomRight, { Qt::DisplayRole, Qt::EditRole });
 }
 
-void DatabaseGroupTreeModel::removeGroup(const QUuid& uid)
+void DatabaseGroupTreeModel::groupRemoved(qsizetype row, QUuid groupUuid)
 {
-    if (!_database) return;
-    qsizetype index = _database->indexOfGroup(uid);
-    if (index < 0) return;
-
-    beginRemoveRows(QModelIndex(), index, index);
-    _database->removeGroup(uid);
+    beginRemoveRows(QModelIndex(), row, row);
     endRemoveRows();
 }

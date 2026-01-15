@@ -144,6 +144,8 @@ void MainWindow::lockDatabase()
             return;
         else if (button == QMessageBox::StandardButton::Yes)
             _database->save();
+        _groupsModel->setDatabase(nullptr);
+        _entriesModel->setDatabase(nullptr);
         _database = nullptr;
         _groupsModel->setDatabase(_database.get());
         _entriesModel->setDatabase(_database.get());
@@ -209,9 +211,9 @@ void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
             if (existingEntry)
-                _entriesModel->editEntry(entry);
+                _database->editEntry(entry);
             else
-                _entriesModel->addEntry(entry);
+                _database->addEntry(entry);
         }
     }
     catch (const std::runtime_error& error) {
@@ -251,7 +253,7 @@ void MainWindow::newGroup()
         DatabaseGroupManager manager(&group, nullptr, parentGroup, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted)
-            _groupsModel->addGroup(group);
+            _database->addGroup(group);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -275,7 +277,7 @@ void MainWindow::editGroup()
         DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted)
-            _groupsModel->editGroup(group);
+            _database->editGroup(group);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -303,7 +305,7 @@ void MainWindow::deleteGroup()
             QMessageBox::StandardButton::No
         );
         if (button == QMessageBox::StandardButton::Yes)
-            _groupsModel->removeGroup(group->uid());
+            _database->removeGroup(group->uid());
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(

@@ -16,9 +16,11 @@ public:
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    void addGroup(const DatabaseGroup& group);
-    void editGroup(const DatabaseGroup& group);
-    void removeGroup(const QUuid& uid);
+
+private slots:
+    void groupAdded(qsizetype row, QUuid groupUuid);
+    void groupEdited(qsizetype row, QUuid groupUuid);
+    void groupRemoved(qsizetype row, QUuid groupUuid);
 
 private:
     Database* _database = nullptr;
