@@ -18,6 +18,7 @@ public:
     ~DatabaseEntryManager();
 
 private slots:
+    void togglePasswordVisibility(bool visible);
     void accept() override;
 
 private:

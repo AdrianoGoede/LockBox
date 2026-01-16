@@ -14,6 +14,7 @@ public:
     DatabaseEntry();
     DatabaseEntry(const QJsonObject& obj);
     QUuid uid() const;
+    void setUid(const QUuid& uid);
     QUuid group() const;
     void setGroup(const QUuid& group);
     void setGroup(const DatabaseGroup& group);

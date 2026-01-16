@@ -63,7 +63,7 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
 
 void DatabaseEntryTableModel::entryAdded(qsizetype row, QUuid entryUuid)
 {
-    beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
+    beginInsertRows(QModelIndex(), (_database->entryCount() - 1), (_database->entryCount() - 1));
     endInsertRows();
 }
 

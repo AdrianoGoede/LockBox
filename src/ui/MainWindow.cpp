@@ -174,7 +174,20 @@ void MainWindow::editEntry()
 
 void MainWindow::deleteEntry()
 {
+    QModelIndex index = ui->tvEntries->currentIndex();
+    if (!index.isValid()) return;
+    const DatabaseEntry* entry = index.data(Qt::UserRole + 1).value<const DatabaseEntry*>();
+    if (!entry) return;
 
+    QMessageBox::StandardButton button = QMessageBox::question(
+        this,
+        "?",
+        QString("Are you sure you want to delete entry '%1'?").arg(entry->title().trimmed()),
+        (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No),
+        QMessageBox::StandardButton::No
+    );
+    if (button == QMessageBox::StandardButton::Yes)
+        _database->removeEntry(entry->uid());
 }
 
 void MainWindow::filterEntryTitle(const QString& filter) { _entriesProxyModel->setTitleFilter(filter); }
@@ -438,6 +451,9 @@ void MainWindow::toggleDatabaseOpenState()
 
     ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
     ui->pbLock->setEnabled(!ui->pbLock->isEnabled());
+    ui->pbAddEntry->setEnabled(!ui->pbAddEntry->isEnabled());
+    ui->pbEditEntry->setEnabled(!ui->pbEditEntry->isEnabled());
+    ui->pbDeleteEntry->setEnabled(!ui->pbDeleteEntry->isEnabled());
 
     ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
     ui->dteCreatedFromFilter->setEnabled(!ui->dteCreatedFromFilter->isEnabled());

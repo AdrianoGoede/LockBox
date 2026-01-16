@@ -20,10 +20,20 @@ DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
 
 QUuid DatabaseEntry::uid() const { return _uid; }
 
+void DatabaseEntry::setUid(const QUuid& uid)
+{
+    if (uid.isNull())
+        throw std::runtime_error("Entry UUID must be valid");
+    _uid = uid;
+    _modifiedAt = QDateTime::currentDateTimeUtc();
+}
+
 QUuid DatabaseEntry::group() const { return _group; }
 
 void DatabaseEntry::setGroup(const QUuid& group)
 {
+    if (group.isNull())
+        throw std::runtime_error("Entry must have a valid group");
     _group = group;
     _modifiedAt = QDateTime::currentDateTimeUtc();
 }
