@@ -14,8 +14,8 @@ DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
     if (_uid.isNull() || _group.isNull() || _title.isEmpty())
         throw std::runtime_error("Invalid or corrupted data");
     this->setPassword(SecureQByteArray(obj["password"].toString().toUtf8()));
-    _createdAt = QDateTime::fromSecsSinceEpoch(obj["created"].toInt());
-    _modifiedAt = QDateTime::fromSecsSinceEpoch(obj["modified"].toInt());
+    _createdAt = QDateTime::fromSecsSinceEpoch(obj["created"].toInteger());
+    _modifiedAt = QDateTime::fromSecsSinceEpoch(obj["modified"].toInteger());
 }
 
 QUuid DatabaseEntry::uid() const { return _uid; }
@@ -75,14 +75,14 @@ QDateTime DatabaseEntry::modifiedAt() const { return _modifiedAt; }
 SecureQByteArray DatabaseEntry::password() const
 {
     SecureQByteArray result;
-    Crypto::decrypt(_password, _key, _nonce, result);
+    Crypto::decrypt(_encryptedPassword, _key, _nonce, result);
     return result;
 }
 
 void DatabaseEntry::setPassword(const SecureQByteArray& password)
 {
     Crypto::generateKey(_key);
-    Crypto::encrypt(password, _key, _password, _nonce);
+    Crypto::encrypt(password, _key, _encryptedPassword, _nonce);
     _modifiedAt = QDateTime::currentDateTimeUtc();
 }
 

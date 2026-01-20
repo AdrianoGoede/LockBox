@@ -36,7 +36,7 @@ private:
     QString _title, _username, _notes;
     QDateTime _createdAt, _modifiedAt;
     QByteArray _nonce;
-    SecureQByteArray _password, _key;
+    SecureQByteArray _encryptedPassword, _key;
 };
 
 #endif // DATABASEENTRY_H

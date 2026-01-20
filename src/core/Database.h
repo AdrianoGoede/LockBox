@@ -12,6 +12,7 @@
 #include "DatabaseGroup.h"
 #include "DatabaseEntry.h"
 #include "SecureQByteArray.h"
+#include "DatabaseEntryHistoryItem.h"
 #include "../config/Constants.h"
 
 class Database : public QObject
@@ -59,6 +60,7 @@ private:
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
+    QList<DatabaseEntryHistoryItem> _entryHistory;
     void loadHeader(const QJsonObject& header, const SecureQByteArray& password);
     void loadData(const QByteArray& data);
 };

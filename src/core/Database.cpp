@@ -57,9 +57,13 @@ void Database::save()
     QJsonArray dataEntries;
     for (const DatabaseEntry& entry : _dbEntries)
         dataEntries.append(entry.toJson());
+    QJsonArray dataEntryHistory;
+    for (const DatabaseEntryHistoryItem& item : _entryHistory)
+        dataEntryHistory.append(item.toJson());
     QJsonObject dataObj {
         { "groups", dataGroups },
-        { "entries", dataEntries }
+        { "entries", dataEntries },
+        { "entryHistory", dataEntryHistory }
     };
 
     QByteArray encryptedData;
@@ -131,6 +135,7 @@ void Database::editEntry(const DatabaseEntry& entry)
 {
     if (!_dbEntries.contains(entry.uid()))
         throw std::runtime_error("Entry does not exist");
+    _entryHistory.append(DatabaseEntryHistoryItem(_dbEntries[entry.uid()]));
     _dbEntries[entry.uid()] = entry;
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
@@ -264,9 +269,13 @@ void Database::loadData(const QByteArray& data)
     }
 
     array = doc.object()["entries"].toArray();
-    for (const QJsonValueRef &entryRef : array) {
+    for (const QJsonValueRef& entryRef : array) {
         DatabaseEntry entry(entryRef.toObject());
         _dbEntryKeys.append(entry.uid());
         _dbEntries[entry.uid()] = std::move(entry);
     }
+
+    array = doc.object()["entryHistory"].toArray();
+    for (const QJsonValueRef& entryRef : array)
+        _entryHistory.append(DatabaseEntryHistoryItem(entryRef.toObject()));
 }
