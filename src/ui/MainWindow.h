@@ -18,6 +18,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void copyTextToClipboard(const QByteArray& text, int seconds = Config::constants::DEFAULT_CLIPBOARD_TIME) const;
 
 private slots:
     void newDatabase();
@@ -60,7 +61,6 @@ private:
     void configureEntryTable();
     void setDefaultFilters();
     void toggleDatabaseOpenState();
-    void copyTextToClipboard(const QByteArray& text, int seconds = Config::constants::DEFAULT_CLIPBOARD_TIME);
 };
 
 #endif // MAINWINDOW_H

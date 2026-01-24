@@ -23,6 +23,18 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 MainWindow::~MainWindow() { delete ui; }
 
+void MainWindow::copyTextToClipboard(const QByteArray& text, int seconds) const
+{
+    QClipboard* clipboard = QGuiApplication::clipboard();
+    if (clipboard && !text.isEmpty()) {
+        clipboard->setText(text);
+        QTimer::singleShot((seconds * 1000), clipboard, [clipboard, text]() {
+            if (clipboard->text().toUtf8() == text)
+                clipboard->clear();
+        });
+    }
+}
+
 void MainWindow::newDatabase()
 {
     try {
@@ -219,8 +231,9 @@ void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
         if (!index.isValid()) return;
         const DatabaseGroup* group = (existingEntry ? &_database->group(existingEntry->group()) : static_cast<const DatabaseGroup*>(index.internalPointer()));
         if (!group) return;
+        QList<DatabaseEntryHistoryItem> history = (existingEntry ? _database->entryHistory(existingEntry->uid()) : QList<DatabaseEntryHistoryItem>());
         DatabaseEntry entry;
-        DatabaseEntryManager manager(&entry, group, existingEntry, this);
+        DatabaseEntryManager manager(&entry, group, existingEntry, &history, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
             if (existingEntry)
@@ -460,16 +473,4 @@ void MainWindow::toggleDatabaseOpenState()
     ui->dteCreatedToFilter->setEnabled(!ui->dteCreatedToFilter->isEnabled());
     ui->dteModifiedFromFilter->setEnabled(!ui->dteModifiedFromFilter->isEnabled());
     ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
-}
-
-void MainWindow::copyTextToClipboard(const QByteArray& text, int seconds)
-{
-    QClipboard* clipboard = QGuiApplication::clipboard();
-    if (clipboard && !text.isEmpty()) {
-        clipboard->setText(text);
-        QTimer::singleShot((seconds * 1000), clipboard, [clipboard, text]() {
-            if (clipboard->text().toUtf8() == text)
-                clipboard->clear();
-        });
-    }
 }

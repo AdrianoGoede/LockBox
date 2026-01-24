@@ -58,8 +58,9 @@ void Database::save()
     for (const DatabaseEntry& entry : _dbEntries)
         dataEntries.append(entry.toJson());
     QJsonArray dataEntryHistory;
-    for (const DatabaseEntryHistoryItem& item : _entryHistory)
-        dataEntryHistory.append(item.toJson());
+    for (const QList<DatabaseEntryHistoryItem>& itemList : _entryHistory)
+        for (const DatabaseEntryHistoryItem& item : itemList)
+            dataEntryHistory.append(item.toJson());
     QJsonObject dataObj {
         { "groups", dataGroups },
         { "entries", dataEntries },
@@ -135,7 +136,7 @@ void Database::editEntry(const DatabaseEntry& entry)
 {
     if (!_dbEntries.contains(entry.uid()))
         throw std::runtime_error("Entry does not exist");
-    _entryHistory.append(DatabaseEntryHistoryItem(_dbEntries[entry.uid()]));
+    recordHistory(entry.uid());
     _dbEntries[entry.uid()] = entry;
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
@@ -154,6 +155,7 @@ void Database::removeEntry(const QUuid& uid)
     if (row < 0) return;
     _dbEntryKeys.removeAt(row);
     _dbEntries.remove(uid);
+    _entryHistory.remove(uid);
     emit entryRemoved(row, uid);
 }
 
@@ -205,6 +207,8 @@ const DatabaseGroup& Database::group(int index) const
     const QUuid& uid = _dbGroupKeys[index];
     return _dbGroups.find(uid).value();
 }
+
+QList<DatabaseEntryHistoryItem> Database::entryHistory(const QUuid& entryUid) const { return _entryHistory.value(entryUid, QList<DatabaseEntryHistoryItem>()); }
 
 QVector<const DatabaseGroup*> Database::childrenOfGroup(const DatabaseGroup* group) const
 {
@@ -276,6 +280,19 @@ void Database::loadData(const QByteArray& data)
     }
 
     array = doc.object()["entryHistory"].toArray();
-    for (const QJsonValueRef& entryRef : array)
-        _entryHistory.append(DatabaseEntryHistoryItem(entryRef.toObject()));
+    for (const QJsonValueRef& entryRef : array) {
+        DatabaseEntryHistoryItem item(entryRef.toObject());
+        if (!_entryHistory.contains(item.entryUid()))
+            _entryHistory[item.entryUid()] = QList<DatabaseEntryHistoryItem>();
+        _entryHistory[item.entryUid()].append(DatabaseEntryHistoryItem(entryRef.toObject()));
+    }
+}
+
+void Database::recordHistory(const QUuid& entryUid)
+{
+    if (!_entryHistory.contains(entryUid))
+        _entryHistory[entryUid] = QList<DatabaseEntryHistoryItem>();
+    _entryHistory[entryUid].append(DatabaseEntryHistoryItem(_dbEntries[entryUid]));
+    while (_entryHistory[entryUid].size() > Config::constants::MAX_DB_ENTRY_HISTORY_ITEMS)
+        _entryHistory[entryUid].removeFirst();
 }

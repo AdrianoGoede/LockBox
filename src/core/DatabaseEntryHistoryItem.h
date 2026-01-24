@@ -13,6 +13,7 @@ public:
     explicit DatabaseEntryHistoryItem(const DatabaseEntry& entry);
     QUuid itemUid() const;
     QUuid entryUid() const;
+    QDateTime createdAt() const;
     QString username() const;
     SecureQByteArray password() const;
     QJsonObject toJson() const;

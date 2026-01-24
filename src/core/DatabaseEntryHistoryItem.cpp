@@ -16,6 +16,8 @@ QUuid DatabaseEntryHistoryItem::itemUid() const { return _itemUid; }
 
 QUuid DatabaseEntryHistoryItem::entryUid() const { return _entryUid; }
 
+QDateTime DatabaseEntryHistoryItem::createdAt() const { return _createdAt; }
+
 QString DatabaseEntryHistoryItem::username() const { return _username; }
 
 SecureQByteArray DatabaseEntryHistoryItem::password() const

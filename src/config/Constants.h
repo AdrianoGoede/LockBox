@@ -30,6 +30,8 @@ namespace Config::constants {
     inline constexpr char PASSWD_GEN_SPECIAL_CHARS2[]    = "/|\\_-";
     inline constexpr char PASSWD_GEN_SPECIAL_CHARS3[]    = "<>*+-=";
     inline constexpr char PASSWD_GEN_SPECIAL_CHARS4[]    = "{[()]}";
+
+    inline constexpr int MAX_DB_ENTRY_HISTORY_ITEMS      = 20;
 }
 
 #endif // CONSTANTS_H

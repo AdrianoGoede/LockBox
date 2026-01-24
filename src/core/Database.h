@@ -37,6 +37,7 @@ public:
     const DatabaseEntry& entry(int index) const;
     const DatabaseGroup& group(const QUuid& uid) const;
     const DatabaseGroup& group(int index) const;
+    QList<DatabaseEntryHistoryItem> entryHistory(const QUuid& entryUid) const;
     QVector<const DatabaseGroup*> childrenOfGroup(const DatabaseGroup* group) const;
     QVector<QUuid> entriesOfGroup(const QUuid& group) const;
     qsizetype indexOfEntry(const QUuid& uid) const;
@@ -60,9 +61,10 @@ private:
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
-    QList<DatabaseEntryHistoryItem> _entryHistory;
+    QHash<QUuid, QList<DatabaseEntryHistoryItem>> _entryHistory;
     void loadHeader(const QJsonObject& header, const SecureQByteArray& password);
     void loadData(const QByteArray& data);
+    void recordHistory(const QUuid& entryUid);
 };
 
 #endif // DATABASE_H
