@@ -4,6 +4,7 @@
 #include "../core/EntryActionButtonDelegate.h"
 #include "DatabaseGroupManager.h"
 #include "DatabaseEntryManager.h"
+#include "DatabaseSettingsManager.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -138,7 +139,8 @@ void MainWindow::saveDatabaseAs()
 
 void MainWindow::openDatabaseSettings()
 {
-
+    DatabaseSettingsManager manager(_database.get(), this);
+    manager.exec();
 }
 
 void MainWindow::lockDatabase()
@@ -457,6 +459,7 @@ void MainWindow::toggleDatabaseOpenState()
 {
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
     ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
+    ui->actionDatabaseSettings->setEnabled(!ui->actionDatabaseSettings->isEnabled());
     ui->actionDatabaseLock->setEnabled(!ui->actionDatabaseLock->isEnabled());
 
     ui->menuEntries->setEnabled(!ui->menuEntries->isEnabled());
@@ -467,6 +470,7 @@ void MainWindow::toggleDatabaseOpenState()
     ui->pbAddEntry->setEnabled(!ui->pbAddEntry->isEnabled());
     ui->pbEditEntry->setEnabled(!ui->pbEditEntry->isEnabled());
     ui->pbDeleteEntry->setEnabled(!ui->pbDeleteEntry->isEnabled());
+    ui->pbDatabaseSettings->setEnabled(!ui->pbDatabaseSettings->isEnabled());
 
     ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
     ui->dteCreatedFromFilter->setEnabled(!ui->dteCreatedFromFilter->isEnabled());

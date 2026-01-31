@@ -21,14 +21,25 @@ void Database::create(const SecureQByteArray& password, std::chrono::millisecond
     if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
         throw std::runtime_error(QString("Could not create database file: %1").arg(_dbFile->errorString()).toUtf8());
 
-    _compressionLevel = Config::constants::DEFAULT_COMPRESSION_LEVEL;
-    _kdfMemory = Config::constants::DEFAULT_KDF_MEMORY;
-    _kdfIterations = Config::constants::DEFAULT_KDF_ITERATIONS;
-    _kdfParallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
+    _header.compressionLevel = Config::constants::DEFAULT_COMPRESSION_LEVEL;
+    _header.kdfMemory = Config::constants::DEFAULT_KDF_MEMORY;
+    _header.kdfIterations = Config::constants::DEFAULT_KDF_ITERATIONS;
+    _header.kdfParallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
 
-    Crypto::generateSalt(_kdfSalt);
-    Crypto::tuneArgon2idParams(unlockDelay, _kdfMemory, _kdfIterations, _kdfParallelism);
-    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+    _settings.saveOnModification = Config::constants::DEFAULT_SAVE_ON_MODIFICATION;
+    _settings.saveOnLocking = Config::constants::DEFAULT_SAVE_ON_LOCKING;
+    _settings.lockOnMinimize = Config::constants::DEFAULT_LOCK_ON_MINIMIZE;
+    _settings.lockOnScreenLocking = Config::constants::DEFAULT_LOCK_ON_SCREEN_LOCKING;
+    _settings.clearClipboardAfter = Config::constants::DEFAULT_CLEAR_CLIPBOARD_AFTER;
+    _settings.lockAfter = Config::constants::DEFAULT_LOCK_AFTER;
+
+    Crypto::generateSalt(_header.kdfSalt);
+    Crypto::tuneArgon2idParams(unlockDelay, _header.kdfMemory, _header.kdfIterations, _header.kdfParallelism);
+    Crypto::deriveKey(password, _header.kdfSalt, _header.kdfMemory, _header.kdfIterations, _header.kdfParallelism, _masterKey);
+
+    DatabaseGroup rootGroup;
+    rootGroup.setTitle("Root");
+    addGroup(rootGroup);
 
     save();
 }
@@ -46,7 +57,7 @@ void Database::load(const SecureQByteArray& password)
         throw std::runtime_error(parseError.errorString().toStdString());
 
     loadHeader(doc.object()["header"].toObject(), password);
-    loadData(QByteArray::fromBase64(doc.object()["data"].toString().toUtf8()));
+    loadBody(QByteArray::fromBase64(doc.object()["body"].toString().toUtf8()));
 }
 
 void Database::save()
@@ -61,36 +72,50 @@ void Database::save()
     for (const QList<DatabaseEntryHistoryItem>& itemList : _entryHistory)
         for (const DatabaseEntryHistoryItem& item : itemList)
             dataEntryHistory.append(item.toJson());
-    QJsonObject dataObj {
-        { "groups", dataGroups },
-        { "entries", dataEntries },
-        { "entryHistory", dataEntryHistory }
+
+    QJsonObject bodyObj {
+        { "settings", QJsonObject {
+            { "saveOnModification", _settings.saveOnModification },
+            { "saveOnLocking", _settings.saveOnLocking },
+            { "lockOnMinimize", _settings.lockOnMinimize },
+            { "lockOnScreenLocking", _settings.lockOnScreenLocking },
+            { "clearClipboardAfter", _settings.clearClipboardAfter },
+            { "lockAfter", _settings.lockAfter }
+        }},
+        { "data", QJsonObject {
+            { "groups", dataGroups },
+            { "entries", dataEntries },
+            { "entryHistory", dataEntryHistory }
+        }}
     };
 
     QByteArray encryptedData;
     Crypto::encrypt(
-        SecureQByteArray(qCompress(QJsonDocument(dataObj).toJson(QJsonDocument::JsonFormat::Compact), _compressionLevel)),
+        SecureQByteArray(
+            qCompress(QJsonDocument(bodyObj).toJson(QJsonDocument::JsonFormat::Compact),
+            _header.compressionLevel)
+        ),
         _masterKey,
         encryptedData,
-        _cryptoNonce
+        _header.cryptoNonce
     );
 
     QJsonObject jsonObj;
     jsonObj["header"] = QJsonObject{
         { "kdf", QJsonObject {
-            { "memory", QJsonValue::fromVariant(_kdfMemory) },
-            { "iterations", QJsonValue::fromVariant(_kdfIterations) },
-            { "parallelism", QJsonValue::fromVariant(_kdfParallelism) },
-            { "salt", QString(_kdfSalt.toBase64()) }
+            { "memory", QJsonValue::fromVariant(_header.kdfMemory) },
+            { "iterations", QJsonValue::fromVariant(_header.kdfIterations) },
+            { "parallelism", QJsonValue::fromVariant(_header.kdfParallelism) },
+            { "salt", QString(_header.kdfSalt.toBase64()) }
         }},
         { "crypto", QJsonObject {
-            { "nonce", QString(_cryptoNonce.toBase64()) }
+            { "nonce", QString(_header.cryptoNonce.toBase64()) }
         }},
         { "compression", QJsonObject {
-            { "level", QJsonValue::fromVariant(_compressionLevel) }
+            { "level", QJsonValue::fromVariant(_header.compressionLevel) }
         }}
     };
-    jsonObj["data"] = QString(encryptedData.toBase64());
+    jsonObj["body"] = QString(encryptedData.toBase64());
 
     try {
         _dbFile->startTransaction();
@@ -238,48 +263,67 @@ void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& pas
 {
     QJsonObject obj = header["kdf"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
-    _kdfMemory = obj["memory"].toInt(Config::constants::DEFAULT_KDF_MEMORY);
-    _kdfIterations = obj["iterations"].toInt(Config::constants::DEFAULT_KDF_ITERATIONS);
-    _kdfParallelism = obj["parallelism"].toInt(Config::constants::DEFAULT_KDF_PARALLELISM);
-    _kdfSalt = QByteArray::fromBase64(obj["salt"].toString().toUtf8());
+    _header.kdfMemory = obj["memory"].toInt(Config::constants::DEFAULT_KDF_MEMORY);
+    _header.kdfIterations = obj["iterations"].toInt(Config::constants::DEFAULT_KDF_ITERATIONS);
+    _header.kdfParallelism = obj["parallelism"].toInt(Config::constants::DEFAULT_KDF_PARALLELISM);
+    _header.kdfSalt = QByteArray::fromBase64(obj["salt"].toString().toUtf8());
 
     obj = header["compression"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
-    _compressionLevel = obj["level"].toInt(Config::constants::DEFAULT_COMPRESSION_LEVEL);
+    _header.compressionLevel = obj["level"].toInt(Config::constants::DEFAULT_COMPRESSION_LEVEL);
 
     obj = header["crypto"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
-    _cryptoNonce = QByteArray::fromBase64(obj["nonce"].toString().toUtf8());
-    if (_cryptoNonce.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
+    _header.cryptoNonce = QByteArray::fromBase64(obj["nonce"].toString().toUtf8());
+    if (_header.cryptoNonce.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
 
-    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+    Crypto::deriveKey(password, _header.kdfSalt, _header.kdfMemory, _header.kdfIterations, _header.kdfParallelism, _masterKey);
 }
 
-void Database::loadData(const QByteArray& data)
+void Database::loadBody(const QByteArray& body)
 {
     SecureQByteArray plaintext;
-    Crypto::decrypt(data, _masterKey, _cryptoNonce, plaintext);
+    Crypto::decrypt(body, _masterKey, _header.cryptoNonce, plaintext);
 
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(qUncompress(plaintext), &parseError);
     if (parseError.error != QJsonParseError::ParseError::NoError)
         throw std::runtime_error("Invalid or corrupted database file");
 
-    QJsonArray array = doc.object()["groups"].toArray();
+    QJsonObject obj = doc.object()["settings"].toObject();
+    loadSettings(obj);
+
+    obj = doc.object()["data"].toObject();
+    loadData(obj);
+}
+
+void Database::loadSettings(const QJsonObject& settings)
+{
+    _settings.saveOnModification = settings["saveOnModification"].toBool(Config::constants::DEFAULT_SAVE_ON_MODIFICATION);
+    _settings.saveOnLocking = settings["saveOnLocking"].toBool(Config::constants::DEFAULT_SAVE_ON_LOCKING);
+    _settings.lockOnMinimize = settings["lockOnMinimize"].toBool(Config::constants::DEFAULT_LOCK_ON_MINIMIZE);
+    _settings.lockOnScreenLocking = settings["lockOnScreenLocking"].toBool(Config::constants::DEFAULT_LOCK_ON_SCREEN_LOCKING);
+    _settings.clearClipboardAfter = settings["clearClipboardAfter"].toInt(Config::constants::DEFAULT_CLEAR_CLIPBOARD_AFTER);
+    _settings.lockAfter = settings["lockAfter"].toInt(Config::constants::DEFAULT_LOCK_AFTER);
+}
+
+void Database::loadData(const QJsonObject& data)
+{
+    QJsonArray array = data["groups"].toArray();
     for (const QJsonValueRef& groupRef : array) {
         DatabaseGroup group(groupRef.toObject());
         _dbGroupKeys.append(group.uid());
         _dbGroups[group.uid()] = std::move(group);
     }
 
-    array = doc.object()["entries"].toArray();
+    array = data["entries"].toArray();
     for (const QJsonValueRef& entryRef : array) {
         DatabaseEntry entry(entryRef.toObject());
         _dbEntryKeys.append(entry.uid());
         _dbEntries[entry.uid()] = std::move(entry);
     }
 
-    array = doc.object()["entryHistory"].toArray();
+    array = data["entryHistory"].toArray();
     for (const QJsonValueRef& entryRef : array) {
         DatabaseEntryHistoryItem item(entryRef.toObject());
         if (!_entryHistory.contains(item.entryUid()))

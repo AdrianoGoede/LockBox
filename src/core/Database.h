@@ -54,16 +54,24 @@ signals:
 
 private:
     std::unique_ptr<QFile> _dbFile = nullptr;
-    quint64 _kdfMemory;
-    quint32 _kdfIterations, _kdfParallelism, _compressionLevel;
-    QByteArray _kdfSalt, _cryptoNonce;
     SecureQByteArray _masterKey;
+    struct {
+        quint64 kdfMemory;
+        quint32 kdfIterations, kdfParallelism, compressionLevel;
+        QByteArray kdfSalt, cryptoNonce;
+    } _header;
+    struct {
+        bool saveOnModification, saveOnLocking, lockOnMinimize, lockOnScreenLocking;
+        int clearClipboardAfter, lockAfter;
+    } _settings;
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
     QHash<QUuid, QList<DatabaseEntryHistoryItem>> _entryHistory;
     void loadHeader(const QJsonObject& header, const SecureQByteArray& password);
-    void loadData(const QByteArray& data);
+    void loadBody(const QByteArray& body);
+    void loadSettings(const QJsonObject& settings);
+    void loadData(const QJsonObject& data);
     void recordHistory(const QUuid& entryUid);
 };
 

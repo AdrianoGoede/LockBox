@@ -65,6 +65,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/core/DatabaseEntryHistoryItem.cpp
         src/core/HistoryActionButtonDelegate.h
         src/core/HistoryActionButtonDelegate.cpp
+        src/ui/DatabaseSettingsManager.h
+        src/ui/DatabaseSettingsManager.cpp
+        src/ui/DatabaseSettingsManager.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
