@@ -13,12 +13,17 @@ class DatabaseSettingsManager : public QDialog
     Q_OBJECT
 
 public:
-    explicit DatabaseSettingsManager(const Database* database, QWidget *parent = nullptr);
+    explicit DatabaseSettingsManager(DatabaseSettings& settings, QWidget* parent = nullptr);
     ~DatabaseSettingsManager();
+
+private slots:
+    void changePassword();
+    void accept() override;
+    void reject() override;
 
 private:
     Ui::DatabaseSettingsManager* ui;
-    const Database* _database = nullptr;
+    DatabaseSettings& _settings;
 };
 
 #endif // DATABASESETTINGSMANAGER_H

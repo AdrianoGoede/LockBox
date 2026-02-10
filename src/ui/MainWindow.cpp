@@ -139,8 +139,22 @@ void MainWindow::saveDatabaseAs()
 
 void MainWindow::openDatabaseSettings()
 {
-    DatabaseSettingsManager manager(_database.get(), this);
-    manager.exec();
+    try {
+        if (!_database) return;
+        DatabaseSettings settings = _database->settings();
+        DatabaseSettingsManager manager(settings, this);
+
+        if (manager.exec() == QDialog::DialogCode::Accepted)
+            _database->setSettings(settings);
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::lockDatabase()

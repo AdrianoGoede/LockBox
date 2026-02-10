@@ -15,6 +15,13 @@
 #include "DatabaseEntryHistoryItem.h"
 #include "../config/Constants.h"
 
+struct DatabaseSettings {
+    quint32 compressionLevel;
+    bool saveOnModification, saveOnLocking, lockOnMinimize, lockOnScreenLocking;
+    int clearClipboardAfter, lockAfter;
+    SecureQByteArray password;
+};
+
 class Database : public QObject
 {
     Q_OBJECT
@@ -42,6 +49,9 @@ public:
     QVector<QUuid> entriesOfGroup(const QUuid& group) const;
     qsizetype indexOfEntry(const QUuid& uid) const;
     qsizetype indexOfGroup(const QUuid& uid) const;
+    DatabaseSettings settings() const;
+    void setSettings(const DatabaseSettings& settings);
+    void changePassword(const SecureQByteArray& password);
 
 signals:
     void entryAdded(qsizetype row, QUuid entryUuid);
@@ -55,15 +65,11 @@ signals:
 private:
     std::unique_ptr<QFile> _dbFile = nullptr;
     SecureQByteArray _masterKey;
-    struct {
-        quint64 kdfMemory;
-        quint32 kdfIterations, kdfParallelism, compressionLevel;
-        QByteArray kdfSalt, cryptoNonce;
-    } _header;
-    struct {
-        bool saveOnModification, saveOnLocking, lockOnMinimize, lockOnScreenLocking;
-        int clearClipboardAfter, lockAfter;
-    } _settings;
+    quint64 _kdfMemory;
+    quint32 _kdfIterations, _kdfParallelism, _compressionLevel;
+    QByteArray _kdfSalt, _cryptoNonce;
+    bool _saveOnModification, _saveOnLocking, _lockOnMinimize, _lockOnScreenLocking;
+    int _clearClipboardAfter, _lockAfter;
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
