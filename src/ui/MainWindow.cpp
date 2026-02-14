@@ -9,9 +9,8 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QClipboard>
-#include <QTimer>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
     configureMenuBar();
@@ -20,16 +19,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     configureEntryTable();
     configureGroupsTree();
     setDefaultFilters();
+    setInactivityHandling();
 }
 
 MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::copyTextToClipboard(const QByteArray& text, int seconds) const
+void MainWindow::copyTextToClipboard(const QByteArray& text) const
 {
     QClipboard* clipboard = QGuiApplication::clipboard();
     if (clipboard && !text.isEmpty()) {
         clipboard->setText(text);
-        QTimer::singleShot((seconds * 1000), clipboard, [clipboard, text]() {
+        QTimer::singleShot(_clipboardTime, clipboard, [clipboard, text]() {
             if (clipboard->text().toUtf8() == text)
                 clipboard->clear();
         });
@@ -46,6 +46,15 @@ void MainWindow::newDatabase()
             _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay, this);
             _groupsModel->setDatabase(_database.get());
             _entriesModel->setDatabase(_database.get());
+
+            DatabaseSettings settings = _database->settings();
+            if (settings.clearClipboardAfter > 0)
+                _clipboardTime = (settings.clearClipboardAfter * 1000);
+            if (settings.lockAfter > 0) {
+                _inactivityTimer.setInterval(settings.lockAfter * 1000);
+                _inactivityTimer.start();
+            }
+
             toggleDatabaseOpenState();
         }
     }
@@ -105,6 +114,15 @@ void MainWindow::openDatabase()
         _database = std::make_unique<Database>(path, password);
         _groupsModel->setDatabase(_database.get());
         _entriesModel->setDatabase(_database.get());
+
+        DatabaseSettings settings = _database->settings();
+        if (settings.clearClipboardAfter > 0)
+            _clipboardTime = (settings.clearClipboardAfter * 1000);
+        if (settings.lockAfter > 0) {
+            _inactivityTimer.setInterval(settings.lockAfter * 1000);
+            _inactivityTimer.start();
+        }
+
         toggleDatabaseOpenState();
     }
     catch (const std::runtime_error& error) {
@@ -144,8 +162,16 @@ void MainWindow::openDatabaseSettings()
         DatabaseSettings settings = _database->settings();
         DatabaseSettingsManager manager(settings, this);
 
-        if (manager.exec() == QDialog::DialogCode::Accepted)
+        if (manager.exec() == QDialog::DialogCode::Accepted) {
+            _inactivityTimer.stop();
             _database->setSettings(settings);
+            if (settings.clearClipboardAfter > 0)
+                _clipboardTime = (settings.clearClipboardAfter * 1000);
+            if (settings.lockAfter > 0) {
+                _inactivityTimer.setInterval(settings.lockAfter * 1000);
+                _inactivityTimer.start();
+            }
+        }
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -174,9 +200,8 @@ void MainWindow::lockDatabase()
             _database->save();
         _groupsModel->setDatabase(nullptr);
         _entriesModel->setDatabase(nullptr);
-        _database = nullptr;
-        _groupsModel->setDatabase(_database.get());
-        _entriesModel->setDatabase(_database.get());
+        _database.reset();
+        _inactivityTimer.stop();
         toggleDatabaseOpenState();
     }
     catch (const std::runtime_error& error) {
@@ -379,6 +404,31 @@ void MainWindow::openAboutPage()
 
 }
 
+void MainWindow::handleInactivityTimeout()
+{
+    try {
+        for (QObject* child : this->children()) {
+            if (QDialog* dialog = qobject_cast<QDialog*>(child))
+                dialog->reject();
+        }
+
+        _database->save();
+        _groupsModel->setDatabase(nullptr);
+        _entriesModel->setDatabase(nullptr);
+        _database.reset();
+        _inactivityTimer.stop();
+        toggleDatabaseOpenState();
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
+}
+
 void MainWindow::configureMenuBar()
 {
     connect(ui->actionDatabaseNew, &QAction::triggered, this, &MainWindow::newDatabase);
@@ -469,6 +519,12 @@ void MainWindow::setDefaultFilters()
     ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
 }
 
+void MainWindow::setInactivityHandling()
+{
+    connect(&_inactivityTimer, &QTimer::timeout, this, &MainWindow::handleInactivityTimeout);
+    qApp->installEventFilter(this);
+}
+
 void MainWindow::toggleDatabaseOpenState()
 {
     ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
@@ -491,4 +547,29 @@ void MainWindow::toggleDatabaseOpenState()
     ui->dteCreatedToFilter->setEnabled(!ui->dteCreatedToFilter->isEnabled());
     ui->dteModifiedFromFilter->setEnabled(!ui->dteModifiedFromFilter->isEnabled());
     ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+{
+    switch (event->type()) {
+        case QEvent::KeyPress:
+        case QEvent::KeyRelease:
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseMove:
+        case QEvent::Wheel:
+        case QEvent::TouchBegin:
+        case QEvent::TouchUpdate:
+        case QEvent::TouchEnd:
+        case QEvent::FocusIn:
+        case QEvent::FocusOut: {
+            if (_inactivityTimer.isActive()) {
+                _inactivityTimer.stop();
+                _inactivityTimer.start();
+            }
+        } break;
+        default: break;
+    }
+
+    return QMainWindow::eventFilter(obj, event);
 }

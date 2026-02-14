@@ -12,6 +12,7 @@ Database::Database(const QString& filePath, const SecureQByteArray& password, st
         this->load(password);
     else
         this->create(password, unlockDelay);
+    connect(this, &Database::databaseStateChanged, this, &Database::handleDatabaseStateChange);
 }
 
 Database::~Database() { if (_dbFile && _dbFile->isOpen()) _dbFile->close(); }
@@ -141,6 +142,7 @@ void Database::addEntry(const DatabaseEntry& entry)
     _dbEntries[entry.uid()] = entry;
 
     emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
+    emit databaseStateChanged();
 }
 
 void Database::addGroup(const DatabaseGroup& group)
@@ -153,6 +155,7 @@ void Database::addGroup(const DatabaseGroup& group)
     _dbGroupKeys.append(group.uid());
     _dbGroups[group.uid()] = group;
     emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
+    emit databaseStateChanged();
 }
 
 void Database::editEntry(const DatabaseEntry& entry)
@@ -162,6 +165,7 @@ void Database::editEntry(const DatabaseEntry& entry)
     recordHistory(entry.uid());
     _dbEntries[entry.uid()] = entry;
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
+    emit databaseStateChanged();
 }
 
 void Database::editGroup(const DatabaseGroup& group)
@@ -170,6 +174,7 @@ void Database::editGroup(const DatabaseGroup& group)
         throw std::runtime_error("Group does not exist!");
     _dbGroups[group.uid()] = group;
     emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
+    emit databaseStateChanged();
 }
 
 void Database::removeEntry(const QUuid& uid)
@@ -180,6 +185,7 @@ void Database::removeEntry(const QUuid& uid)
     _dbEntries.remove(uid);
     _entryHistory.remove(uid);
     emit entryRemoved(row, uid);
+    emit databaseStateChanged();
 }
 
 void Database::removeGroup(const QUuid& uid)
@@ -195,6 +201,7 @@ void Database::removeGroup(const QUuid& uid)
     _dbGroupKeys.removeAt(row);
     _dbGroups.remove(uid);
     emit groupRemoved(row, uid);
+    emit databaseStateChanged();
 }
 
 size_t Database::entryCount() const { return _dbEntries.size(); }
@@ -293,7 +300,11 @@ void Database::setSettings(const DatabaseSettings& settings)
     _lockOnScreenLocking = settings.lockOnScreenLocking;
     _clearClipboardAfter = settings.clearClipboardAfter;
     _lockAfter = settings.lockAfter;
+
+    emit databaseStateChanged();
 }
+
+void Database::handleDatabaseStateChange() { if (_saveOnModification) save(); }
 
 void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& password)
 {

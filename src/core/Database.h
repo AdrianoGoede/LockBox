@@ -60,7 +60,11 @@ signals:
     void groupAdded(qsizetype row, QUuid groupUuid);
     void groupRemoved(qsizetype row, QUuid groupUuid);
     void groupEdited(qsizetype row, QUuid groupUuid);
+    void databaseStateChanged();
     void databaseCleared();
+
+private slots:
+    void handleDatabaseStateChange();
 
 private:
     std::unique_ptr<QFile> _dbFile = nullptr;

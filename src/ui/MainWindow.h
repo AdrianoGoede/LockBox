@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 #include "../core/Database.h"
 #include "../core/DatabaseGroupTreeModel.h"
 #include "../core/DatabaseEntryTableModel.h"
@@ -18,7 +19,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void copyTextToClipboard(const QByteArray& text, int seconds = Config::constants::DEFAULT_CLIPBOARD_TIME) const;
+    void copyTextToClipboard(const QByteArray& text) const;
 
 private slots:
     void newDatabase();
@@ -47,6 +48,7 @@ private slots:
     void openAppSettings();
     void openRepo();
     void openAboutPage();
+    void handleInactivityTimeout();
 
 private:
     Ui::MainWindow* ui;
@@ -54,13 +56,17 @@ private:
     DatabaseGroupTreeModel* _groupsModel = nullptr;
     DatabaseEntryTableModel* _entriesModel = nullptr;
     DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
+    QTimer _inactivityTimer;
+    quint32 _clipboardTime;
     void configureMenuBar();
     void configureButtonBar();
     void configureFilterBar();
     void configureGroupsTree();
     void configureEntryTable();
     void setDefaultFilters();
+    void setInactivityHandling();
     void toggleDatabaseOpenState();
+    bool eventFilter(QObject *obj, QEvent *event) override;
 };
 
 #endif // MAINWINDOW_H
