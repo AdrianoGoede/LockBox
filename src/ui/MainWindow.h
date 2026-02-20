@@ -9,7 +9,7 @@
 #include "../core/DatabaseEntryTableProxyModel.h"
 
 namespace Ui {
-    class MainWindow;
+class MainWindow;
 }
 
 class MainWindow : public QMainWindow
@@ -27,7 +27,7 @@ private slots:
     void saveDatabase();
     void saveDatabaseAs();
     void openDatabaseSettings();
-    void lockDatabase();
+    void lockDatabase(bool ask = true);
     void newEntry();
     void editEntry();
     void deleteEntry();
@@ -64,9 +64,10 @@ private:
     void configureGroupsTree();
     void configureEntryTable();
     void setDefaultFilters();
-    void setInactivityHandling();
+    void setTimers();
     void toggleDatabaseOpenState();
-    bool eventFilter(QObject *obj, QEvent *event) override;
+    void closeChildDialogs();
+    bool eventFilter(QObject* obj, QEvent* event) override;
 };
 
 #endif // MAINWINDOW_H

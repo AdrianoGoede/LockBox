@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     configureEntryTable();
     configureGroupsTree();
     setDefaultFilters();
-    setInactivityHandling();
+    setTimers();
 }
 
 MainWindow::~MainWindow() { delete ui; }
@@ -183,15 +183,15 @@ void MainWindow::openDatabaseSettings()
     }
 }
 
-void MainWindow::lockDatabase()
+void MainWindow::lockDatabase(bool ask)
 {
-    QMessageBox::StandardButton button = QMessageBox::question(
+    QMessageBox::StandardButton button = (ask ? QMessageBox::question(
         this,
         "?",
         "Unsaved changes will be lost, do you want to save?",
         (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No | QMessageBox::StandardButton::Cancel),
         QMessageBox::StandardButton::Yes
-    );
+    ) : QMessageBox::StandardButton::Yes);
 
     try {
         if (button == QMessageBox::StandardButton::Cancel)
@@ -407,17 +407,8 @@ void MainWindow::openAboutPage()
 void MainWindow::handleInactivityTimeout()
 {
     try {
-        for (QObject* child : this->children()) {
-            if (QDialog* dialog = qobject_cast<QDialog*>(child))
-                dialog->reject();
-        }
-
-        _database->save();
-        _groupsModel->setDatabase(nullptr);
-        _entriesModel->setDatabase(nullptr);
-        _database.reset();
-        _inactivityTimer.stop();
-        toggleDatabaseOpenState();
+        closeChildDialogs();
+        lockDatabase(false);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -519,7 +510,7 @@ void MainWindow::setDefaultFilters()
     ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
 }
 
-void MainWindow::setInactivityHandling()
+void MainWindow::setTimers()
 {
     connect(&_inactivityTimer, &QTimer::timeout, this, &MainWindow::handleInactivityTimeout);
     qApp->installEventFilter(this);
@@ -549,7 +540,15 @@ void MainWindow::toggleDatabaseOpenState()
     ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *event)
+void MainWindow::closeChildDialogs()
+{
+    for (QObject* child : this->children()) {
+        if (QDialog* dialog = qobject_cast<QDialog*>(child))
+            dialog->reject();
+    }
+}
+
+bool MainWindow::eventFilter(QObject* obj, QEvent* event)
 {
     switch (event->type()) {
         case QEvent::KeyPress:

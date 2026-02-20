@@ -17,7 +17,7 @@
 
 struct DatabaseSettings {
     quint32 compressionLevel;
-    bool saveOnModification, saveOnLocking, lockOnMinimize, lockOnScreenLocking;
+    bool saveOnModification, saveOnLocking;
     int clearClipboardAfter, lockAfter;
     SecureQByteArray password;
 };
@@ -72,7 +72,7 @@ private:
     quint64 _kdfMemory;
     quint32 _kdfIterations, _kdfParallelism, _compressionLevel;
     QByteArray _kdfSalt, _cryptoNonce;
-    bool _saveOnModification, _saveOnLocking, _lockOnMinimize, _lockOnScreenLocking;
+    bool _saveOnModification, _saveOnLocking;
     int _clearClipboardAfter, _lockAfter;
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;

@@ -29,8 +29,6 @@ void Database::create(const SecureQByteArray& password, std::chrono::millisecond
 
     _saveOnModification = Config::constants::DEFAULT_SAVE_ON_MODIFICATION;
     _saveOnLocking = Config::constants::DEFAULT_SAVE_ON_LOCKING;
-    _lockOnMinimize = Config::constants::DEFAULT_LOCK_ON_MINIMIZE;
-    _lockOnScreenLocking = Config::constants::DEFAULT_LOCK_ON_SCREEN_LOCKING;
     _clearClipboardAfter = Config::constants::DEFAULT_CLIPBOARD_TIME;
     _lockAfter = Config::constants::DEFAULT_LOCK_AFTER;
 
@@ -79,8 +77,6 @@ void Database::save()
             { "compressionLevel", QJsonValue::fromVariant(_compressionLevel) },
             { "saveOnModification", QJsonValue::fromVariant(_saveOnModification) },
             { "saveOnLocking", QJsonValue::fromVariant(_saveOnLocking) },
-            { "lockOnMinimize", QJsonValue::fromVariant(_lockOnMinimize) },
-            { "lockOnScreenLocking", QJsonValue::fromVariant(_lockOnScreenLocking) },
             { "clearClipboardAfter", QJsonValue::fromVariant(_clearClipboardAfter) },
             { "lockAfter", QJsonValue::fromVariant(_lockAfter) }
         }},
@@ -270,10 +266,9 @@ DatabaseSettings Database::settings() const
         _compressionLevel,
         _saveOnModification,
         _saveOnLocking,
-        _lockOnMinimize,
-        _lockOnScreenLocking,
         _clearClipboardAfter,
-        _lockAfter
+        _lockAfter,
+        SecureQByteArray()
     };
 }
 
@@ -296,8 +291,6 @@ void Database::setSettings(const DatabaseSettings& settings)
     _compressionLevel = settings.compressionLevel;
     _saveOnModification = settings.saveOnModification;
     _saveOnLocking = settings.saveOnLocking;
-    _lockOnMinimize = settings.lockOnMinimize;
-    _lockOnScreenLocking = settings.lockOnScreenLocking;
     _clearClipboardAfter = settings.clearClipboardAfter;
     _lockAfter = settings.lockAfter;
 
@@ -345,8 +338,6 @@ void Database::loadSettings(const QJsonObject& settings)
     _compressionLevel = settings["compressionLevel"].toInt(Config::constants::DEFAULT_COMPRESSION_LEVEL);
     _saveOnModification = settings["saveOnModification"].toBool(Config::constants::DEFAULT_SAVE_ON_MODIFICATION);
     _saveOnLocking = settings["saveOnLocking"].toBool(Config::constants::DEFAULT_SAVE_ON_LOCKING);
-    _lockOnMinimize = settings["lockOnMinimize"].toBool(Config::constants::DEFAULT_LOCK_ON_MINIMIZE);
-    _lockOnScreenLocking = settings["lockOnScreenLocking"].toBool(Config::constants::DEFAULT_LOCK_ON_SCREEN_LOCKING);
     _clearClipboardAfter = settings["clearClipboardAfter"].toInt(Config::constants::DEFAULT_CLIPBOARD_TIME);
     _lockAfter = settings["lockAfter"].toInt(Config::constants::DEFAULT_LOCK_AFTER);
 }

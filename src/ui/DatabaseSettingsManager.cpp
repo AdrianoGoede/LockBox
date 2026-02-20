@@ -21,8 +21,6 @@ DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, QWi
 
     ui->cbAutosave->setChecked(_settings.saveOnModification);
     ui->sbCompressionLevel->setValue(_settings.compressionLevel);
-    ui->cbLockOnMinimizing->setChecked(_settings.lockOnMinimize);
-    ui->cbLockOnScreenLocking->setChecked(_settings.lockOnScreenLocking);
     ui->cbClearClipboardAfter->setChecked(_settings.clearClipboardAfter > 0);
     ui->sbClearClipboardAfter->setValue(_settings.clearClipboardAfter);
     ui->cbLockAfterInactivity->setChecked(_settings.lockAfter > 0);
@@ -51,8 +49,6 @@ void DatabaseSettingsManager::accept()
 {
     _settings.compressionLevel = ui->sbCompressionLevel->value();
     _settings.saveOnModification = ui->cbAutosave->isChecked();
-    _settings.lockOnMinimize = ui->cbLockOnMinimizing->isChecked();
-    _settings.lockOnScreenLocking = ui->cbLockOnScreenLocking->isChecked();
     _settings.clearClipboardAfter = (ui->cbClearClipboardAfter->isChecked() ? ui->sbClearClipboardAfter->value() : 0);
     _settings.lockAfter = (ui->cbLockAfterInactivity->isChecked() ? ui->sbLockAfterInactivity->value() : 0);
     QDialog::accept();

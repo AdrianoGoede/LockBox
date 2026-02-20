@@ -96,28 +96,26 @@
       <set>Qt::AlignmentFlag::AlignCenter</set>
      </property>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="0">
-       <widget class="QCheckBox" name="cbLockOnMinimizing">
-        <property name="text">
-         <string>Lock on minimizing</string>
+      <item row="1" column="1">
+       <widget class="QSpinBox" name="sbLockAfterInactivity">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignCenter</set>
+        </property>
+        <property name="suffix">
+         <string> Seconds</string>
+        </property>
+        <property name="minimum">
+         <number>30</number>
+        </property>
+        <property name="maximum">
+         <number>1800</number>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="QCheckBox" name="cbLockOnScreenLocking">
-        <property name="text">
-         <string>Lock on screen locking</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QCheckBox" name="cbClearClipboardAfter">
-        <property name="text">
-         <string>Clear clipboard after:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
        <widget class="QSpinBox" name="sbClearClipboardAfter">
         <property name="enabled">
          <bool>false</bool>
@@ -136,29 +134,17 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QCheckBox" name="cbLockAfterInactivity">
+      <item row="0" column="0">
+       <widget class="QCheckBox" name="cbClearClipboardAfter">
         <property name="text">
-         <string>Lock after inactivity:</string>
+         <string>Clear clipboard after:</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
-       <widget class="QSpinBox" name="sbLockAfterInactivity">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignmentFlag::AlignCenter</set>
-        </property>
-        <property name="suffix">
-         <string> Seconds</string>
-        </property>
-        <property name="minimum">
-         <number>30</number>
-        </property>
-        <property name="maximum">
-         <number>1800</number>
+      <item row="1" column="0">
+       <widget class="QCheckBox" name="cbLockAfterInactivity">
+        <property name="text">
+         <string>Lock after inactivity:</string>
         </property>
        </widget>
       </item>

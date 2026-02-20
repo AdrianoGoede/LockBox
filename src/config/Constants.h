@@ -30,8 +30,6 @@ namespace Config::constants {
     inline constexpr int DEFAULT_LOCK_AFTER                         = 60;
     inline constexpr bool DEFAULT_SAVE_ON_MODIFICATION              = false;
     inline constexpr bool DEFAULT_SAVE_ON_LOCKING                   = false;
-    inline constexpr bool DEFAULT_LOCK_ON_MINIMIZE                  = false;
-    inline constexpr bool DEFAULT_LOCK_ON_SCREEN_LOCKING            = false;
 
     inline constexpr char PASSWD_GEN_UPPERCASE_LETTERS[]            = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     inline constexpr char PASSWD_GEN_LOWERCASE_LETTERS[]            = "abcdefghijklmnopqrstuvwxyz";
