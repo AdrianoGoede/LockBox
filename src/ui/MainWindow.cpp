@@ -2,6 +2,7 @@
 #include "ui_MainWindow.h"
 #include "NewDatabase.h"
 #include "../core/EntryActionButtonDelegate.h"
+#include "../config/Constants.h"
 #include "DatabaseGroupManager.h"
 #include "DatabaseEntryManager.h"
 #include "DatabaseSettingsManager.h"
@@ -41,22 +42,24 @@ void MainWindow::newDatabase()
     try {
         NewDbConfig config;
         NewDatabase newDbForm(config, this);
+        if (newDbForm.exec() != QDialog::DialogCode::Accepted) return;
 
-        if (newDbForm.exec() == QDialog::DialogCode::Accepted) {
-            _database = std::make_unique<Database>(config.dbFilePath, config.password, config.unlockDelay, this);
-            _groupsModel->setDatabase(_database.get());
-            _entriesModel->setDatabase(_database.get());
+        DatabaseSettings settings;
+        DatabaseSettingsManager manager(settings, nullptr, this);
+        if (manager.exec() != QDialog::DialogCode::Accepted) return;
 
-            DatabaseSettings settings = _database->settings();
-            if (settings.clearClipboardAfter > 0)
-                _clipboardTime = (settings.clearClipboardAfter * 1000);
-            if (settings.lockAfter > 0) {
-                _inactivityTimer.setInterval(settings.lockAfter * 1000);
-                _inactivityTimer.start();
-            }
+        _database = std::make_unique<Database>(config, settings, this);
+        _groupsModel->setDatabase(_database.get());
+        _entriesModel->setDatabase(_database.get());
 
-            toggleDatabaseOpenState();
+        if (settings.clearClipboardAfter > 0)
+            _clipboardTime = (settings.clearClipboardAfter * 1000);
+        if (settings.lockAfter > 0) {
+            _inactivityTimer.setInterval(settings.lockAfter * 1000);
+            _inactivityTimer.start();
         }
+
+        toggleDatabaseOpenState();
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -159,8 +162,9 @@ void MainWindow::openDatabaseSettings()
 {
     try {
         if (!_database) return;
-        DatabaseSettings settings = _database->settings();
-        DatabaseSettingsManager manager(settings, this);
+        DatabaseSettings settings;
+        DatabaseSettings existingSettings = _database->settings();
+        DatabaseSettingsManager manager(settings, &existingSettings, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
             _inactivityTimer.stop();

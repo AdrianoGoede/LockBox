@@ -5,42 +5,35 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-Database::Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay, QObject* parent) : QObject{parent}
+Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject{parent}
 {
-    _dbFile = std::make_unique<QFile>(filePath);
-    if (_dbFile->exists())
-        this->load(password);
-    else
-        this->create(password, unlockDelay);
-    connect(this, &Database::databaseStateChanged, this, &Database::handleDatabaseStateChange);
-}
-
-Database::~Database() { if (_dbFile && _dbFile->isOpen()) _dbFile->close(); }
-
-void Database::create(const SecureQByteArray& password, std::chrono::milliseconds unlockDelay)
-{
+    _dbFile = std::make_unique<QFile>(newDbConfig.dbFilePath);
     if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
         throw std::runtime_error(QString("Could not create database file: %1").arg(_dbFile->errorString()).toUtf8());
 
-    _compressionLevel = Config::constants::DEFAULT_COMPRESSION_LEVEL;
-    _kdfMemory = Config::constants::DEFAULT_KDF_MEMORY;
-    _kdfIterations = Config::constants::DEFAULT_KDF_ITERATIONS;
-    _kdfParallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
-
-    _saveOnModification = Config::constants::DEFAULT_SAVE_ON_MODIFICATION;
-    _saveOnLocking = Config::constants::DEFAULT_SAVE_ON_LOCKING;
-    _clearClipboardAfter = Config::constants::DEFAULT_CLIPBOARD_TIME;
-    _lockAfter = Config::constants::DEFAULT_LOCK_AFTER;
-
-    Crypto::generateSalt(_kdfSalt);
-    Crypto::tuneArgon2idParams(unlockDelay, _kdfMemory, _kdfIterations, _kdfParallelism);
-    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
-
+    setSettings(newDatabaseSettings);
     DatabaseGroup rootGroup;
     rootGroup.setTitle("Root");
     addGroup(rootGroup);
 
     save();
+}
+
+Database::Database(const QString& filePath, const SecureQByteArray& password, QObject* parent) : QObject{parent}
+{
+    _dbFile = std::make_unique<QFile>(filePath);
+    if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
+        throw std::runtime_error(QString("Could not open database file: %1").arg(_dbFile->errorString()).toUtf8());
+
+    QByteArray payload = _dbFile->readAll();
+
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(payload, &parseError);
+    if (parseError.error != QJsonParseError::ParseError::NoError)
+        throw std::runtime_error(parseError.errorString().toStdString());
+
+    loadHeader(doc.object()["header"].toObject(), password);
+    loadBody(QByteArray::fromBase64(doc.object()["body"].toString().toUtf8()));
 }
 
 void Database::load(const SecureQByteArray& password)
@@ -138,7 +131,6 @@ void Database::addEntry(const DatabaseEntry& entry)
     _dbEntries[entry.uid()] = entry;
 
     emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
-    emit databaseStateChanged();
 }
 
 void Database::addGroup(const DatabaseGroup& group)
@@ -151,7 +143,6 @@ void Database::addGroup(const DatabaseGroup& group)
     _dbGroupKeys.append(group.uid());
     _dbGroups[group.uid()] = group;
     emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
-    emit databaseStateChanged();
 }
 
 void Database::editEntry(const DatabaseEntry& entry)
@@ -161,7 +152,6 @@ void Database::editEntry(const DatabaseEntry& entry)
     recordHistory(entry.uid());
     _dbEntries[entry.uid()] = entry;
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
-    emit databaseStateChanged();
 }
 
 void Database::editGroup(const DatabaseGroup& group)
@@ -170,7 +160,6 @@ void Database::editGroup(const DatabaseGroup& group)
         throw std::runtime_error("Group does not exist!");
     _dbGroups[group.uid()] = group;
     emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
-    emit databaseStateChanged();
 }
 
 void Database::removeEntry(const QUuid& uid)
@@ -181,7 +170,6 @@ void Database::removeEntry(const QUuid& uid)
     _dbEntries.remove(uid);
     _entryHistory.remove(uid);
     emit entryRemoved(row, uid);
-    emit databaseStateChanged();
 }
 
 void Database::removeGroup(const QUuid& uid)
@@ -197,7 +185,6 @@ void Database::removeGroup(const QUuid& uid)
     _dbGroupKeys.removeAt(row);
     _dbGroups.remove(uid);
     emit groupRemoved(row, uid);
-    emit databaseStateChanged();
 }
 
 size_t Database::entryCount() const { return _dbEntries.size(); }
@@ -263,6 +250,9 @@ qsizetype Database::indexOfGroup(const QUuid& uid) const { return _dbGroupKeys.i
 DatabaseSettings Database::settings() const
 {
     return DatabaseSettings {
+        _kdfMemory,
+        _kdfIterations,
+        _kdfParallelism,
         _compressionLevel,
         _saveOnModification,
         _saveOnLocking,
@@ -274,6 +264,12 @@ DatabaseSettings Database::settings() const
 
 void Database::setSettings(const DatabaseSettings& settings)
 {
+    if (settings.kdfMemory < Config::constants::MIN_KDF_MEMORY || settings.kdfMemory > Config::constants::MAX_KDF_MEMORY)
+        throw std::runtime_error(QString("KDF memory must be between %1 and %2 KiB").arg(Config::constants::MIN_KDF_MEMORY / 1024).arg(Config::constants::MAX_KDF_MEMORY / 1024).toStdString());
+    if (settings.kdfIterations < Config::constants::MIN_KDF_ITERATIONS || settings.kdfIterations > Config::constants::MAX_KDF_ITERATIONS)
+        throw std::runtime_error(QString("KDF iterations must be between %1 and %2").arg(Config::constants::MIN_KDF_ITERATIONS).arg(Config::constants::MAX_KDF_ITERATIONS).toStdString());
+    if (settings.kdfParallelism < Config::constants::MIN_KDF_PARALLELISM || settings.kdfParallelism > Config::constants::MAX_KDF_PARALLELISM)
+        throw std::runtime_error(QString("KDF paralellism must be between %1 and %2").arg(Config::constants::MIN_KDF_PARALLELISM).arg(Config::constants::MAX_KDF_PARALLELISM).toStdString());
     if (settings.compressionLevel < Config::constants::MIN_COMPRESSION_LEVEL || settings.compressionLevel > Config::constants::MAX_COMPRESSION_LEVEL)
         throw std::runtime_error(QString("Compression level must be between %1 and %2").arg(Config::constants::MIN_COMPRESSION_LEVEL).arg(Config::constants::MAX_COMPRESSION_LEVEL).toStdString());
     if (settings.clearClipboardAfter != 0 && (settings.clearClipboardAfter < Config::constants::MIN_CLIPBOARD_TIME || settings.clearClipboardAfter > Config::constants::MAX_CLIPBOARD_TIME))
@@ -283,18 +279,19 @@ void Database::setSettings(const DatabaseSettings& settings)
     if (!settings.password.isEmpty() && (settings.password.size() < Config::constants::MIN_PASSWORD_LENGTH || settings.password.size() > Config::constants::MAX_PASSWORD_LENGTH))
         throw std::runtime_error(QString("Password length must be from %1 to %2").arg(Config::constants::MIN_PASSWORD_LENGTH).arg(Config::constants::MAX_PASSWORD_LENGTH).toStdString());
 
-    if (!settings.password.isEmpty()) {
-        Crypto::generateSalt(_kdfSalt);
-        Crypto::deriveKey(settings.password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
-    }
-
+    _kdfMemory = settings.kdfMemory;
+    _kdfIterations = settings.kdfIterations;
+    _kdfParallelism = settings.kdfParallelism;
     _compressionLevel = settings.compressionLevel;
     _saveOnModification = settings.saveOnModification;
     _saveOnLocking = settings.saveOnLocking;
     _clearClipboardAfter = settings.clearClipboardAfter;
     _lockAfter = settings.lockAfter;
 
-    emit databaseStateChanged();
+    if (!settings.password.isEmpty()) {
+        Crypto::generateSalt(_kdfSalt);
+        Crypto::deriveKey(settings.password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+    }
 }
 
 void Database::handleDatabaseStateChange() { if (_saveOnModification) save(); }

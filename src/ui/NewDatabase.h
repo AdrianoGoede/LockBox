@@ -2,18 +2,11 @@
 #define NEWDATABASE_H
 
 #include <QDialog>
-#include <chrono>
-#include "../core/SecureQByteArray.h"
+#include "../core/Database.h"
 
 namespace Ui {
     class NewDatabase;
 }
-
-struct NewDbConfig {
-    QString dbFilePath;
-    std::chrono::milliseconds unlockDelay;
-    SecureQByteArray password;
-};
 
 class NewDatabase : public QDialog
 {

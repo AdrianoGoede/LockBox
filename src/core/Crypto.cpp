@@ -84,7 +84,7 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
 {
     if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
 
-    memoryKiB = (Config::constants::DEFAULT_KDF_MEMORY * 1024);
+    memoryKiB = (Config::constants::DEFAULT_KDF_MEMORY);
     iterations = Config::constants::DEFAULT_KDF_ITERATIONS;
     parallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
 
@@ -111,7 +111,7 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
         return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     };
 
-    while (benchmark() < targetDelay && memoryKiB < (1024 * 1024))
+    while (benchmark() < targetDelay && memoryKiB <= Config::constants::MAX_KDF_MEMORY)
         memoryKiB *= 2;
 }
 

@@ -28,11 +28,8 @@ void NewDatabase::accept()
 
     if (message.isEmpty()) {
         _dbConfig.dbFilePath = ui->leFilePath->text();
-        _dbConfig.unlockDelay = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<double>(ui->dsbUnlockDelay->value() * 1000.0));
-
         _dbConfig.password.wipe();
         _dbConfig.password.append(ui->lePassword->text().toUtf8());
-
         QDialog::accept();
     }
     else

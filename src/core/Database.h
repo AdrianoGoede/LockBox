@@ -13,10 +13,15 @@
 #include "DatabaseEntry.h"
 #include "SecureQByteArray.h"
 #include "DatabaseEntryHistoryItem.h"
-#include "../config/Constants.h"
+
+struct NewDbConfig {
+    QString dbFilePath;
+    SecureQByteArray password;
+};
 
 struct DatabaseSettings {
-    quint32 compressionLevel;
+    quint64 kdfMemory;
+    quint32 kdfIterations, kdfParallelism, compressionLevel;
     bool saveOnModification, saveOnLocking;
     int clearClipboardAfter, lockAfter;
     SecureQByteArray password;
@@ -27,9 +32,9 @@ class Database : public QObject
     Q_OBJECT
 
 public:
-    Database(const QString& filePath, const SecureQByteArray& password, std::chrono::milliseconds unlockDelay = Config::constants::DEFAULT_UNLOCK_DELAY, QObject* parent = nullptr);
-    ~Database();
-    void create(const SecureQByteArray& password, std::chrono::milliseconds unlockDelay);
+    Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent = nullptr);
+    Database(const QString& filePath, const SecureQByteArray& password, QObject* parent = nullptr);
+    ~Database() = default;
     void load(const SecureQByteArray& password);
     void save();
     void addEntry(const DatabaseEntry& entry);
@@ -60,7 +65,6 @@ signals:
     void groupAdded(qsizetype row, QUuid groupUuid);
     void groupRemoved(qsizetype row, QUuid groupUuid);
     void groupEdited(qsizetype row, QUuid groupUuid);
-    void databaseStateChanged();
     void databaseCleared();
 
 private slots:
