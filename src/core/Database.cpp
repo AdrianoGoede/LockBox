@@ -172,6 +172,15 @@ void Database::removeEntry(const QUuid& uid)
     emit entryRemoved(row, uid);
 }
 
+void Database::moveGroup(const QUuid& group, const QUuid& newParent)
+{
+    if (!_dbGroups.contains(group))
+        throw std::runtime_error("Group does not exist");
+    if (!_dbGroups.contains(newParent))
+        throw std::runtime_error("New parent group does not exist");
+    _dbGroups[group].setParent(newParent);
+}
+
 void Database::removeGroup(const QUuid& uid)
 {
     qsizetype row = _dbGroupKeys.indexOf(uid);

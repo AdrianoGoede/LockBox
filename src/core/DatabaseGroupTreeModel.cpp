@@ -80,6 +80,72 @@ QVariant DatabaseGroupTreeModel::data(const QModelIndex& index, int role) const
     }
 }
 
+Qt::ItemFlags DatabaseGroupTreeModel::flags(const QModelIndex& index) const
+{
+    Qt::ItemFlags flags = QAbstractItemModel::flags(index);
+    if (index.isValid())
+        return (flags | Qt::ItemIsDragEnabled | Qt::ItemIsDropEnabled);
+    return flags;
+}
+
+Qt::DropActions DatabaseGroupTreeModel::supportedDropActions() const { return Qt::MoveAction; }
+
+Qt::DropActions DatabaseGroupTreeModel::supportedDragActions() const { return Qt::MoveAction; }
+
+QStringList DatabaseGroupTreeModel::mimeTypes() const {
+    return {
+        "application/x-qabstractitemmodeldatalist",
+        "application/x-custom-group-uuid"
+        "text/uri-list"
+    };
+}
+
+QMimeData* DatabaseGroupTreeModel::mimeData(const QModelIndexList& indexes) const
+{
+    QMimeData* mimeData = new QMimeData();
+    QByteArray encodedData;
+    QDataStream stream(&encodedData, QIODevice::WriteOnly);
+
+    for (const QModelIndex& index : indexes) {
+        if (!index.isValid()) continue;
+        const DatabaseGroup* group = static_cast<const DatabaseGroup*>(index.internalPointer());
+        if (group)
+            stream << group->uid().toString(QUuid::WithoutBraces);
+    }
+
+    mimeData->setData("application/x-custom-group-uuid", encodedData);
+    return mimeData;
+}
+
+bool DatabaseGroupTreeModel::dropMimeData(const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
+{
+    if (action == Qt::IgnoreAction) return true;
+    if (!data->hasFormat("application/x-custom-group-uuid")) return false;
+
+    QByteArray encodedData = data->data("application/x-custom-group-uuid");
+    QDataStream stream(&encodedData, QIODevice::ReadOnly);
+
+    QList<QUuid> draggedUuids;
+    QString uuidStr;
+    while (!stream.atEnd()) {
+        stream >> uuidStr;
+        draggedUuids.append(QUuid(uuidStr));
+    }
+
+    if (!parent.isValid()) return false;
+    const DatabaseGroup* parentGroup = static_cast<const DatabaseGroup*>(parent.internalPointer());
+    if (!parentGroup) return false;
+
+    if (!draggedUuids.isEmpty()) {
+        QUuid draggedUuid = draggedUuids.first();
+        _database->moveGroup(draggedUuid, parentGroup->uid());
+        emit layoutChanged();
+        return true;
+    }
+
+    return false;
+}
+
 void DatabaseGroupTreeModel::groupAdded(qsizetype row, QUuid groupUuid)
 {
     beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());

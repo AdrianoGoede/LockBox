@@ -469,6 +469,8 @@ void MainWindow::configureGroupsTree()
 {
     _groupsModel = new DatabaseGroupTreeModel(this);
     ui->tvGroups->setModel(_groupsModel);
+    ui->tvGroups->setAcceptDrops(true);
+    ui->tvGroups->setDropIndicatorShown(true);
     connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::filterEntriesByGroup);
 }
 

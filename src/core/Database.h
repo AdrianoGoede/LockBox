@@ -42,6 +42,7 @@ public:
     void editEntry(const DatabaseEntry& entry);
     void editGroup(const DatabaseGroup& group);
     void removeEntry(const QUuid& uid);
+    void moveGroup(const QUuid& group, const QUuid& newParent);
     void removeGroup(const QUuid& uid);
     size_t entryCount() const;
     size_t groupCount() const;

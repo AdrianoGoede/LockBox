@@ -262,7 +262,17 @@
     <item row="3" column="0" colspan="5">
      <layout class="QHBoxLayout" name="dataLayout" stretch="3,7">
       <item>
-       <widget class="QTreeView" name="tvGroups"/>
+       <widget class="QTreeView" name="tvGroups">
+        <property name="dragEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="dragDropMode">
+         <enum>QAbstractItemView::DragDropMode::InternalMove</enum>
+        </property>
+        <property name="defaultDropAction">
+         <enum>Qt::DropAction::MoveAction</enum>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QTableView" name="tvEntries"/>
