@@ -3,8 +3,8 @@
 
 #include <QHash>
 #include <QUuid>
-#include <QFile>
 #include <QList>
+#include <QFile>
 #include <chrono>
 #include <QString>
 #include <QObject>
@@ -35,12 +35,12 @@ public:
     Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent = nullptr);
     Database(const QString& filePath, const SecureQByteArray& password, QObject* parent = nullptr);
     ~Database() = default;
-    void load(const SecureQByteArray& password);
     void save();
     void addEntry(const DatabaseEntry& entry);
     void addGroup(const DatabaseGroup& group);
     void editEntry(const DatabaseEntry& entry);
     void editGroup(const DatabaseGroup& group);
+    void moveEntry(const QUuid& entry, const QUuid& group);
     void removeEntry(const QUuid& uid);
     void moveGroup(const QUuid& group, const QUuid& newParent);
     void removeGroup(const QUuid& uid);
@@ -72,7 +72,7 @@ private slots:
     void handleDatabaseStateChange();
 
 private:
-    std::unique_ptr<QFile> _dbFile = nullptr;
+    QString _filePath;
     SecureQByteArray _masterKey;
     quint64 _kdfMemory;
     quint32 _kdfIterations, _kdfParallelism, _compressionLevel;

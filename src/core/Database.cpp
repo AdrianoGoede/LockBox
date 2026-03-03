@@ -4,44 +4,25 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QSaveFile>
 
-Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject{parent}
+Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject{parent}, _filePath{newDbConfig.dbFilePath}
 {
-    _dbFile = std::make_unique<QFile>(newDbConfig.dbFilePath);
-    if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
-        throw std::runtime_error(QString("Could not create database file: %1").arg(_dbFile->errorString()).toUtf8());
-
     setSettings(newDatabaseSettings);
     DatabaseGroup rootGroup;
     rootGroup.setTitle("Root");
     addGroup(rootGroup);
-
     save();
 }
 
-Database::Database(const QString& filePath, const SecureQByteArray& password, QObject* parent) : QObject{parent}
+Database::Database(const QString& filePath, const SecureQByteArray& password, QObject* parent) : QObject{parent}, _filePath{filePath}
 {
-    _dbFile = std::make_unique<QFile>(filePath);
-    if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
-        throw std::runtime_error(QString("Could not open database file: %1").arg(_dbFile->errorString()).toUtf8());
+    QFile file(filePath);
+    if (!file.open(QIODevice::OpenModeFlag::ReadOnly))
+        throw std::runtime_error(QString("Could not open database file: %1").arg(file.errorString()).toUtf8());
 
-    QByteArray payload = _dbFile->readAll();
-
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(payload, &parseError);
-    if (parseError.error != QJsonParseError::ParseError::NoError)
-        throw std::runtime_error(parseError.errorString().toStdString());
-
-    loadHeader(doc.object()["header"].toObject(), password);
-    loadBody(QByteArray::fromBase64(doc.object()["body"].toString().toUtf8()));
-}
-
-void Database::load(const SecureQByteArray& password)
-{
-    if (!_dbFile->open(QIODevice::OpenModeFlag::ReadWrite))
-        throw std::runtime_error(QString("Could not open database file: %1").arg(_dbFile->errorString()).toUtf8());
-
-    SecureQByteArray payload(_dbFile->readAll());
+    QByteArray payload = file.readAll();
+    file.close();
 
     QJsonParseError parseError;
     QJsonDocument doc = QJsonDocument::fromJson(payload, &parseError);
@@ -105,17 +86,14 @@ void Database::save()
     };
     jsonObj["body"] = QString(encryptedData.toBase64());
 
-    try {
-        _dbFile->startTransaction();
-        _dbFile->resize(0);
-        _dbFile->write(QJsonDocument(jsonObj).toJson(QJsonDocument::JsonFormat::Compact));
-        _dbFile->flush();
-        _dbFile->commitTransaction();
-    }
-    catch (...) {
-        _dbFile->rollbackTransaction();
-        throw;
-    }
+    QByteArray data = QJsonDocument(jsonObj).toJson(QJsonDocument::JsonFormat::Compact);
+    QSaveFile file(_filePath);
+    if (!file.open(QIODevice::OpenModeFlag::WriteOnly))
+        throw std::runtime_error(QString("Could not open database file for saving: %1").arg(file.errorString()).toStdString());
+    if (file.write(data) != data.size())
+        throw std::runtime_error(QString("Could not write to databse file: %1").arg(file.errorString()).toStdString());
+    if (!file.commit())
+        throw std::runtime_error(QString("Could not save databse file: %1").arg(file.errorString()).toStdString());
 }
 
 void Database::addEntry(const DatabaseEntry& entry)
@@ -160,6 +138,15 @@ void Database::editGroup(const DatabaseGroup& group)
         throw std::runtime_error("Group does not exist!");
     _dbGroups[group.uid()] = group;
     emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
+}
+
+void Database::moveEntry(const QUuid& entry, const QUuid& group)
+{
+    if (!_dbEntries.contains(entry))
+        throw std::runtime_error("Entry does not exist");
+    if (!_dbGroups.contains(group))
+        throw std::runtime_error("Group does not exist");
+    _dbEntries[entry].setGroup(group);
 }
 
 void Database::removeEntry(const QUuid& uid)
