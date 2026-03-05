@@ -96,6 +96,20 @@ void Database::save()
         throw std::runtime_error(QString("Could not save databse file: %1").arg(file.errorString()).toStdString());
 }
 
+void Database::saveAs(const QString& path)
+{
+    QString oldPath = _filePath;
+
+    try {
+        _filePath = path;
+        save();
+    }
+    catch (...) {
+        _filePath = oldPath;
+        throw;
+    }
+}
+
 void Database::addEntry(const DatabaseEntry& entry)
 {
     if (_dbEntries.contains(entry.uid()))

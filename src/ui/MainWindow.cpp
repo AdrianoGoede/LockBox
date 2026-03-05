@@ -155,7 +155,24 @@ void MainWindow::saveDatabase()
 
 void MainWindow::saveDatabaseAs()
 {
-
+    try {
+        QString path = QFileDialog::getSaveFileName(
+            this,
+            "Save As",
+            QDir::currentPath(),
+            QString(Config::constants::FILE_FILTER)
+        );
+        if (!path.isEmpty())
+            _database->saveAs(path);
+    }
+    catch (const std::runtime_error& error) {
+        QMessageBox::critical(
+            this,
+            "Error",
+            error.what(),
+            QMessageBox::StandardButton::Ok
+        );
+    }
 }
 
 void MainWindow::openDatabaseSettings()

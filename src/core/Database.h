@@ -36,6 +36,7 @@ public:
     Database(const QString& filePath, const SecureQByteArray& password, QObject* parent = nullptr);
     ~Database() = default;
     void save();
+    void saveAs(const QString& path);
     void addEntry(const DatabaseEntry& entry);
     void addGroup(const DatabaseGroup& group);
     void editEntry(const DatabaseEntry& entry);
