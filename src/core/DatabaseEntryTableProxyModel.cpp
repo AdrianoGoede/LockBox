@@ -1,5 +1,6 @@
 #include "DatabaseEntryTableProxyModel.h"
 #include "DatabaseEntry.h"
+#include <QIODevice>
 
 DatabaseEntryTableProxyModel::DatabaseEntryTableProxyModel(QObject* parent) : QSortFilterProxyModel(parent) {}
 

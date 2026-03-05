@@ -28,6 +28,7 @@ private slots:
     void groupAdded(qsizetype row, QUuid groupUuid);
     void groupEdited(qsizetype row, QUuid groupUuid);
     void groupRemoved(qsizetype row, QUuid groupUuid);
+    void groupMoved(qsizetype row, QUuid groupUuid);
 
 private:
     Database* _database = nullptr;

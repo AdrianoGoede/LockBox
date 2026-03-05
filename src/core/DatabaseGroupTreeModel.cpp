@@ -15,6 +15,7 @@ void DatabaseGroupTreeModel::setDatabase(Database* database)
         connect(_database, &Database::groupAdded, this, &DatabaseGroupTreeModel::groupAdded);
         connect(_database, &Database::groupEdited, this, &DatabaseGroupTreeModel::groupEdited);
         connect(_database, &Database::groupRemoved, this, &DatabaseGroupTreeModel::groupRemoved);
+        connect(_database, &Database::groupMoved, this, &DatabaseGroupTreeModel::groupMoved);
     }
 
     endResetModel();
@@ -95,8 +96,9 @@ Qt::DropActions DatabaseGroupTreeModel::supportedDragActions() const { return Qt
 QStringList DatabaseGroupTreeModel::mimeTypes() const {
     return {
         "application/x-qabstractitemmodeldatalist",
-        "application/x-custom-group-uuid"
-        "text/uri-list"
+        "text/uri-list",
+        "application/x-custom-group-uuid",
+        "application/x-custom-entry-uuid"
     };
 }
 
@@ -120,11 +122,19 @@ QMimeData* DatabaseGroupTreeModel::mimeData(const QModelIndexList& indexes) cons
 bool DatabaseGroupTreeModel::dropMimeData(const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
 {
     if (action == Qt::IgnoreAction) return true;
-    if (!data->hasFormat("application/x-custom-group-uuid")) return false;
 
-    QByteArray encodedData = data->data("application/x-custom-group-uuid");
+    QString format;
+    if (data->hasFormat("application/x-custom-group-uuid"))
+        format = "application/x-custom-group-uuid";
+    else if (data->hasFormat("application/x-custom-entry-uuid"))
+        format = "application/x-custom-entry-uuid";
+    else
+        return false;
+
+    QByteArray encodedData = data->data(format);
+    if (encodedData.isEmpty()) return false;
+
     QDataStream stream(&encodedData, QIODevice::ReadOnly);
-
     QList<QUuid> draggedUuids;
     QString uuidStr;
     while (!stream.atEnd()) {
@@ -132,14 +142,17 @@ bool DatabaseGroupTreeModel::dropMimeData(const QMimeData* data, Qt::DropAction 
         draggedUuids.append(QUuid(uuidStr));
     }
 
-    if (!parent.isValid()) return false;
-    const DatabaseGroup* parentGroup = static_cast<const DatabaseGroup*>(parent.internalPointer());
-    if (!parentGroup) return false;
+    if (draggedUuids.isEmpty() || !parent.isValid()) return false;
+    const DatabaseGroup* destinationGroup = static_cast<const DatabaseGroup*>(parent.internalPointer());
+    if (!destinationGroup) return false;
 
-    if (!draggedUuids.isEmpty()) {
-        QUuid draggedUuid = draggedUuids.first();
-        _database->moveGroup(draggedUuid, parentGroup->uid());
-        emit layoutChanged();
+    QUuid draggedUuid = draggedUuids.first();
+    if (data->hasFormat("application/x-custom-group-uuid")) {
+        _database->moveGroup(draggedUuid, destinationGroup->uid());
+        return true;
+    }
+    else if (data->hasFormat("application/x-custom-entry-uuid")) {
+        _database->moveEntry(draggedUuid, destinationGroup->uid());
         return true;
     }
 
@@ -166,3 +179,5 @@ void DatabaseGroupTreeModel::groupRemoved(qsizetype row, QUuid groupUuid)
     beginRemoveRows(QModelIndex(), row, row);
     endRemoveRows();
 }
+
+void DatabaseGroupTreeModel::groupMoved(qsizetype row, QUuid groupUuid) { emit layoutChanged(); }

@@ -4,6 +4,7 @@
 #include "Database.h"
 #include <QAbstractTableModel>
 #include <QObject>
+#include <QMimeData>
 
 enum DatabaseEntryModelColumns {
     Title = 0,
@@ -25,6 +26,10 @@ public:
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+    Qt::ItemFlags flags(const QModelIndex& index) const override;
+    Qt::DropActions supportedDragActions() const override;
+    QStringList mimeTypes() const override;
+    QMimeData* mimeData(const QModelIndexList& indexes) const override;
 
 private slots:
     void entryAdded(qsizetype row, QUuid entryUuid);

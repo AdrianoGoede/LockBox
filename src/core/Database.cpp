@@ -147,6 +147,7 @@ void Database::moveEntry(const QUuid& entry, const QUuid& group)
     if (!_dbGroups.contains(group))
         throw std::runtime_error("Group does not exist");
     _dbEntries[entry].setGroup(group);
+    emit entryMoved(_dbEntryKeys.indexOf(entry), entry);
 }
 
 void Database::removeEntry(const QUuid& uid)
@@ -166,6 +167,7 @@ void Database::moveGroup(const QUuid& group, const QUuid& newParent)
     if (!_dbGroups.contains(newParent))
         throw std::runtime_error("New parent group does not exist");
     _dbGroups[group].setParent(newParent);
+    emit groupMoved(_dbGroupKeys.indexOf(group), group);
 }
 
 void Database::removeGroup(const QUuid& uid)

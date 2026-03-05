@@ -63,9 +63,11 @@ signals:
     void entryAdded(qsizetype row, QUuid entryUuid);
     void entryRemoved(qsizetype row, QUuid entryUuid);
     void entryEdited(qsizetype row, QUuid entryUuid);
+    void entryMoved(qsizetype row, QUuid entryUuid);
     void groupAdded(qsizetype row, QUuid groupUuid);
     void groupRemoved(qsizetype row, QUuid groupUuid);
     void groupEdited(qsizetype row, QUuid groupUuid);
+    void groupMoved(qsizetype row, QUuid groupUuid);
     void databaseCleared();
 
 private slots:

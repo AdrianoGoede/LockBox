@@ -4,6 +4,7 @@
 #include <QUuid>
 #include <QObject>
 #include <QDateTime>
+#include <QMimeData>
 #include <QSortFilterProxyModel>
 
 class DatabaseEntryTableProxyModel : public QSortFilterProxyModel

@@ -15,6 +15,7 @@ void DatabaseEntryTableModel::setDatabase(Database* database)
         connect(_database, &Database::entryAdded, this, &DatabaseEntryTableModel::entryAdded);
         connect(_database, &Database::entryEdited, this, &DatabaseEntryTableModel::entryEdited);
         connect(_database, &Database::entryRemoved, this, &DatabaseEntryTableModel::entryRemoved);
+        connect(_database, &Database::entryMoved, this, &DatabaseEntryTableModel::entryEdited);
     }
 
     endResetModel();
@@ -59,6 +60,40 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
         case DatabaseEntryModelColumns::PerformAutotype: return "Autotype";
         default: return QVariant();
     }
+}
+
+Qt::ItemFlags DatabaseEntryTableModel::flags(const QModelIndex &index) const
+{
+    Qt::ItemFlags flags = QAbstractItemModel::flags(index);
+    if (index.isValid())
+        return (flags | Qt::ItemIsDragEnabled);
+    return flags;
+}
+
+Qt::DropActions DatabaseEntryTableModel::supportedDragActions() const { return Qt::MoveAction; }
+
+QStringList DatabaseEntryTableModel::mimeTypes() const {
+    return {
+        "application/x-qabstractitemmodeldatalist",
+        "text/uri-list",
+        "application/x-custom-entry-uuid"
+    };
+}
+
+QMimeData* DatabaseEntryTableModel::mimeData(const QModelIndexList& indexes) const
+{
+    QMimeData* mimeData = new QMimeData();
+    QByteArray encodedData;
+    QDataStream stream(&encodedData, QIODevice::WriteOnly);
+
+    if (!indexes.isEmpty()) {
+        QModelIndex index = indexes.first();
+        const DatabaseEntry& entry = _database->entry(index.row());
+        stream << entry.uid().toString(QUuid::WithoutBraces);
+    }
+
+    mimeData->setData("application/x-custom-entry-uuid", encodedData);
+    return mimeData;
 }
 
 void DatabaseEntryTableModel::entryAdded(qsizetype row, QUuid entryUuid)
