@@ -3,10 +3,12 @@
 #include "../config/Constants.h"
 #include "../core/Crypto.h"
 #include <QSet>
+#include <QDir>
 
 PasswordGenerator::PasswordGenerator(SecureQByteArray* out, QWidget *parent) : QDialog(parent), ui(new Ui::PasswordGenerator), _out(out)
 {
     ui->setupUi(this);
+    setDefaultWordLists();
     connect(ui->pbGenerate, &QAbstractButton::clicked, this, &PasswordGenerator::generate);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -28,6 +30,14 @@ void PasswordGenerator::generate()
         case 0: generatePassword(); break;
         case 1: generatePassphrase(); break;
     }
+}
+
+void PasswordGenerator::setDefaultWordLists()
+{
+    QDir directory(Config::constants::WORDLISTS_RESOURCES_DIRECTORY);
+    QStringList files = directory.entryList(QDir::Filter::Files);
+    for (const QString& file : files)
+        ui->lwPassphraseWordlists->addItem(QString("%1/%2").arg(Config::constants::WORDLISTS_RESOURCES_DIRECTORY).arg(file));
 }
 
 void PasswordGenerator::generatePassword()

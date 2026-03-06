@@ -6,6 +6,7 @@
 #include "DatabaseGroupManager.h"
 #include "DatabaseEntryManager.h"
 #include "DatabaseSettingsManager.h"
+#include "PasswordGenerator.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -407,7 +408,8 @@ void MainWindow::deleteGroup()
 
 void MainWindow::openPasswordGenerator()
 {
-
+    PasswordGenerator generator(nullptr, this);
+    generator.exec();
 }
 
 void MainWindow::openAppSettings()

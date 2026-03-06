@@ -10,6 +10,7 @@ namespace Config::constants {
     inline constexpr char FILE_FILTER[]                             = "LockBox Database (*.lbdb)";
     inline constexpr int MIN_PASSWORD_LENGTH                        = 8;
     inline constexpr int MAX_PASSWORD_LENGTH                        = 100;
+    inline constexpr char WORDLISTS_RESOURCES_DIRECTORY[]           = ":/wordlists";
     inline constexpr std::chrono::milliseconds DEFAULT_UNLOCK_DELAY = (std::chrono::milliseconds)1000;
 
     inline constexpr int SALT_BYTES                                 = crypto_pwhash_argon2id_SALTBYTES;

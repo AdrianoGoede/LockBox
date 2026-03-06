@@ -26,6 +26,7 @@ private slots:
 private:
     Ui::PasswordGenerator* ui;
     SecureQByteArray* _out = nullptr;
+    void setDefaultWordLists();
     void generatePassword();
     void generatePassphrase();
     QVector<char> buildCharset();
