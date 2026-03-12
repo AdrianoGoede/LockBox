@@ -2,6 +2,7 @@
 #include "../config/Constants.h"
 #include <sodium.h>
 #include <QString>
+#include <QDebug>
 
 void Crypto::encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, QByteArray& ciphertext, QByteArray& nonce)
 {
@@ -145,7 +146,7 @@ void Crypto::generateRandomPassword(const QVector<char>& charset, qsizetype leng
     out.wipe();
     out.resize(length);
     for (int i = 0; i < length; i++) {
-        int index = randombytes_uniform(static_cast<uint32_t>(charset.size()));
-        out.append(charset.at(index));
+        uint32_t index = randombytes_uniform(static_cast<uint32_t>(charset.size()));
+        out[i] = charset.at(index);
     }
 }
