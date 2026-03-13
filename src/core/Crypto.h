@@ -14,6 +14,7 @@ namespace Crypto {
     void generateRandomPassword(const QVector<char>& charset, qsizetype length, SecureQByteArray& out);
     void generateNonce(QByteArray& nonce);
     void generateSalt(QByteArray& salt);
+    QVector<quint32> generateRandomUnsignedIntegers(quint32 upperBound,qsizetype count);
 }
 
 #endif // CRYPTO_H

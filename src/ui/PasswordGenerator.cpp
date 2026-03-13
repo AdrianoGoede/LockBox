@@ -2,6 +2,7 @@
 #include "ui_PasswordGenerator.h"
 #include "../config/Constants.h"
 #include "../core/Crypto.h"
+#include <QStringBuilder>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSet>
@@ -80,7 +81,8 @@ void PasswordGenerator::buildWordlist()
         QTextStream stream(&file);
         while (!stream.atEnd()) {
             QString line = stream.readLine();
-            words.insert((line.contains('\t') ? line.split('\t').last() : line).trimmed().toLower());
+            int tabIndex = line.lastIndexOf('\t');
+            words.insert((tabIndex != -1) ? line.mid(tabIndex + 1) : line);
         }
     }
     _wordlist = QVector<QString>(words.cbegin(), words.cend());
@@ -116,6 +118,8 @@ void PasswordGenerator::togglePasswordVisibility(bool visible) { ui->lePassword-
 
 void PasswordGenerator::handlePasswordLengthChange(int value) { ui->lbPasswordLength->setText(QString("Length: %1 characters").arg(value)); }
 
+void PasswordGenerator::handlePassphraseLengthChange(int value){ ui->lbPassphraseWordCount->setText(QString("Length: %1 words").arg(value)); }
+
 void PasswordGenerator::handleWordlistSelectionChange()
 {
     QList<QListWidgetItem*> selectedItems = ui->lwPassphraseWordlists->selectedItems();
@@ -148,6 +152,10 @@ void PasswordGenerator::setPassphraseTab()
     connect(ui->lwPassphraseWordlists, &QListWidget::itemSelectionChanged, this, &PasswordGenerator::handleWordlistSelectionChange);
     connect(ui->pbPassphraseAddWordlist, &QAbstractButton::clicked, this, &PasswordGenerator::addWordlist);
     connect(ui->pbPassphraseRemoveWordlist, &QAbstractButton::clicked, this, &PasswordGenerator::removeWordlist);
+
+    connect(ui->hsPassphraseWordCount, &QAbstractSlider::valueChanged, this, &PasswordGenerator::handlePassphraseLengthChange);
+    ui->hsPassphraseWordCount->setMinimum(Config::constants::MIN_PASSPHRASE_LENGTH);
+    ui->hsPassphraseWordCount->setMaximum(Config::constants::MAX_PASSPHRASE_LENGTH);
 }
 
 void PasswordGenerator::generatePassword()
@@ -159,5 +167,23 @@ void PasswordGenerator::generatePassword()
 
 void PasswordGenerator::generatePassphrase()
 {
+    QStringList words;
+    words.reserve(ui->hsPassphraseWordCount->value());
 
+    QVector<quint32> indexes = Crypto::generateRandomUnsignedIntegers(_wordlist.size(), ui->hsPassphraseWordCount->value());
+    for (quint32 index : indexes) {
+        QString word(_wordlist.at(index).toUtf8());
+        switch (ui->cbPassphraseWordCase->currentIndex()) {
+            case 0: word = word.toLower(); break;
+            case 1: word = word.toUpper(); break;
+            case 2: {
+                word = word.toLower();
+                word[0] = word[0].toUpper();
+            }; break;
+        }
+        words.append(word);
+    }
+
+    QString separator = ui->lePassphraseSeparator->text();
+    ui->lePassword->setText(words.join(separator.isEmpty() ? " " : separator));
 }

@@ -28,6 +28,7 @@ private slots:
     void removeWordlist();
     void togglePasswordVisibility(bool visible);
     void handlePasswordLengthChange(int value);
+    void handlePassphraseLengthChange(int value);
     void handleWordlistSelectionChange();
 
 private:
