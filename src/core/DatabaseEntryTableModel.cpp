@@ -30,13 +30,14 @@ QVariant DatabaseEntryTableModel::data(const QModelIndex& index, int role) const
     if (!_database || !index.isValid() || index.row() >= _database->entryCount())
         return QVariant();
 
-    const DatabaseEntry& entry = _database->entry(index.row());
+    const DatabaseEntry* entry = _database->entry(index.row());
+    if (!entry) return QVariant();
 
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
-            case DatabaseEntryModelColumns::Title: return entry.title();
-            case DatabaseEntryModelColumns::CreatedAt: return entry.createdAt();
-            case DatabaseEntryModelColumns::ModifiedAt: return entry.modifiedAt();
+            case DatabaseEntryModelColumns::Title: return entry->title();
+            case DatabaseEntryModelColumns::CreatedAt: return entry->createdAt();
+            case DatabaseEntryModelColumns::ModifiedAt: return entry->modifiedAt();
         }
     }
     else if (role == Qt::UserRole + 1)
@@ -88,8 +89,9 @@ QMimeData* DatabaseEntryTableModel::mimeData(const QModelIndexList& indexes) con
 
     if (!indexes.isEmpty()) {
         QModelIndex index = indexes.first();
-        const DatabaseEntry& entry = _database->entry(index.row());
-        stream << entry.uid().toString(QUuid::WithoutBraces);
+        const DatabaseEntry* entry = _database->entry(index.row());
+        if (entry)
+            stream << entry->uid().toString(QUuid::WithoutBraces);
     }
 
     mimeData->setData("application/x-custom-entry-uuid", encodedData);

@@ -2,42 +2,41 @@
 #include "../config/Constants.h"
 #include <sodium.h>
 #include <QString>
+#include <QStringConverter>
 
-void Crypto::encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, QByteArray& ciphertext, QByteArray& nonce)
+QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce)
 {
-    ciphertext.clear();
-    ciphertext.resize((plaintext.size() + crypto_aead_aes256gcm_ABYTES), 0);
-    generateNonce(nonce);
+    QByteArray ciphertext;
+    ciphertext.resize(plaintext.size() + crypto_aead_aes256gcm_ABYTES);
 
-    unsigned long long ciphertextLength;
+    quint64 ciphertextLength;
     int result = crypto_aead_aes256gcm_encrypt(
         reinterpret_cast<u_char*>(ciphertext.data()),
         &ciphertextLength,
-        reinterpret_cast<const u_char*>(plaintext.constData()),
+        reinterpret_cast<const u_char*>(plaintext.data()),
         plaintext.size(),
         nullptr,
         0,
         nullptr,
         reinterpret_cast<const u_char*>(nonce.constData()),
-        reinterpret_cast<const u_char*>(key.constData())
+        reinterpret_cast<const u_char*>(key.data())
     );
-
     if (result != 0) {
-        nonce.clear();
         ciphertext.clear();
         throw std::runtime_error("AES-256-GCM encryption failed");
     }
+
+    return ciphertext;
 }
 
-void Crypto::decrypt(const QByteArray& ciphertext, const SecureQByteArray& key, const QByteArray& nonce, SecureQByteArray& plaintext)
+SecureBuffer<std::byte> Crypto::decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce)
 {
     if (ciphertext.size() < crypto_aead_aes256gcm_ABYTES)
         throw std::runtime_error("Ciphertext invalid");
 
-    plaintext.wipe();
-    plaintext.resize((ciphertext.size() - crypto_aead_aes256gcm_ABYTES), 0);
+    SecureBuffer<std::byte> plaintext(ciphertext.size() - crypto_aead_aes256gcm_ABYTES);
 
-    unsigned long long plaintextLength;
+    quint64 plaintextLength;
     int result = crypto_aead_aes256gcm_decrypt(
         reinterpret_cast<u_char*>(plaintext.data()),
         &plaintextLength,
@@ -47,37 +46,32 @@ void Crypto::decrypt(const QByteArray& ciphertext, const SecureQByteArray& key, 
         nullptr,
         0,
         reinterpret_cast<const u_char*>(nonce.constData()),
-        reinterpret_cast<const u_char*>(key.constData())
+        reinterpret_cast<const u_char*>(key.data())
     );
-
-    if (result != 0) {
-        plaintext.wipe();
+    if (result != 0)
         throw std::runtime_error("AES-256-GCM decryption failed (forged/invalid)");
-    }
+
+    return plaintext;
 }
 
-void Crypto::deriveKey(const SecureQByteArray& password, const QByteArray& salt, quint64 memoryKiB, quint32 iterations, quint32 parallelism, SecureQByteArray& key)
+SecureBuffer<std::byte> Crypto::deriveKey(const SecureBuffer<std::byte>& password, const QByteArray& salt, quint64 memoryKib, quint32 iterations, quint32 parallelism)
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
-
-    key.wipe();
-    key.resize(Config::constants::KEY_BYTES, 0);
+    SecureBuffer<std::byte> key(Config::constants::KEY_BYTES);
 
     int result = crypto_pwhash(
         reinterpret_cast<u_char*>(key.data()),
         key.size(),
-        password.constData(),
+        reinterpret_cast<const char*>(password.data()),
         password.size(),
         reinterpret_cast<const u_char*>(salt.constData()),
         iterations,
-        (memoryKiB * 1024ULL),
+        (memoryKib * 1024ULL),
         crypto_pwhash_ALG_ARGON2ID13
     );
 
-    if (result != 0) {
-        key.wipe();
+    if (result != 0)
         throw std::runtime_error("Argon2id benchmark failed");
-    }
+    return key;
 }
 
 void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism)
@@ -115,46 +109,53 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
         memoryKiB *= 2;
 }
 
-void Crypto::generateNonce(QByteArray& nonce)
+QByteArray Crypto::generateNonce()
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
-    nonce.clear();
-    nonce.resize(Config::constants::NONCE_BYTES, 0);
+    QByteArray nonce;
+    nonce.resize(Config::constants::NONCE_BYTES);
     randombytes_buf(nonce.data(), nonce.size());
+    return nonce;
 }
 
-void Crypto::generateSalt(QByteArray& salt)
+QByteArray Crypto::generateSalt()
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
-    salt.clear();
-    salt.resize(Config::constants::SALT_BYTES, 0);
+    QByteArray salt;
+    salt.resize(Config::constants::SALT_BYTES);
     randombytes_buf(salt.data(), salt.size());
+    return salt;
 }
 
-void Crypto::generateKey(SecureQByteArray& key)
+SecureBuffer<std::byte> Crypto::generateKey()
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
-    key.wipe();
-    key.resize(Config::constants::KEY_BYTES);
-    randombytes_buf(key.data(), key.size());
+    SecureBuffer<std::byte> key(Config::constants::KEY_BYTES);
+    randombytes_buf(key.data(), key.byteSize());
+    return key;
 }
 
-void Crypto::generateRandomPassword(const QVector<char>& charset, qsizetype length, SecureQByteArray& out)
+SecureBuffer<QChar> Crypto::generateRandomPassword(const QVector<QChar>& charset, qsizetype length)
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
-    out.wipe();
-    out.resize(length);
-    for (int i = 0; i < length; i++) {
-        uint32_t index = randombytes_uniform(static_cast<uint32_t>(charset.size()));
-        out[i] = charset.at(index);
+    SecureBuffer<QChar> result(length);
+    for (qsizetype i = 0; i < length; i++) {
+        qsizetype index = randombytes_uniform(charset.size());
+        result[i] = charset.at(index);
     }
+    return result;
 }
 
-QVector<quint32> Crypto::generateRandomUnsignedIntegers(quint32 upperBound, qsizetype count)
+SecureBuffer<quint32> Crypto::generateRandomUnsignedIntegers(quint32 upperBound, qsizetype count)
 {
-    QVector<quint32> result;
-    result.reserve(count);
+    SecureBuffer<quint32> result(count);
     for (qsizetype i = 0; i < count; i++)
-        result.append(randombytes_uniform(upperBound));
+        result[i] = randombytes_uniform(upperBound);
     return result;
+}
+
+SecureBuffer<std::byte> Crypto::qCharToByte(const SecureBuffer<QChar>& input)
+{
+    return SecureBuffer<std::byte>(0); // TO DO!!
+}
+
+SecureBuffer<QChar> Crypto::byteToQChar(const SecureBuffer<std::byte>& input)
+{
+    return SecureBuffer<QChar>(0); // TO DO!!
 }

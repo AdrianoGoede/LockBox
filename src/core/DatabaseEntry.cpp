@@ -1,4 +1,5 @@
 #include "DatabaseEntry.h"
+#include "../config/Constants.h"
 #include "Crypto.h"
 #include <QJsonArray>
 
@@ -13,9 +14,17 @@ DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
     _notes = obj["notes"].toString();
     if (_uid.isNull() || _group.isNull() || _title.isEmpty())
         throw std::runtime_error("Invalid or corrupted data");
-    this->setPassword(SecureQByteArray(obj["password"].toString().toUtf8()));
     _createdAt = QDateTime::fromSecsSinceEpoch(obj["created"].toInteger());
     _modifiedAt = QDateTime::fromSecsSinceEpoch(obj["modified"].toInteger());
+
+    _keyNonce = QByteArray::fromBase64(obj["keyNonce"].toString().toUtf8());
+    _key = QByteArray::fromBase64(obj["key"].toString().toUtf8());
+    _passwordNonce = QByteArray::fromBase64(obj["passwordNonce"].toString().toUtf8());
+    _password = QByteArray::fromBase64(obj["password"].toString().toUtf8());
+
+    QJsonArray history = obj["history"].toArray(QJsonArray());
+    for (const QJsonValueRef item : history)
+        _history.append(DatabaseEntryHistoryItem(item.toObject()));
 }
 
 QUuid DatabaseEntry::uid() const { return _uid; }
@@ -56,6 +65,7 @@ QString DatabaseEntry::username() const { return _username; }
 
 void DatabaseEntry::setUsername(const QString& name)
 {
+    recordHistory();
     _username = name;
     _modifiedAt = QDateTime::currentDateTimeUtc();
 }
@@ -72,18 +82,38 @@ QDateTime DatabaseEntry::createdAt() const { return _createdAt; }
 
 QDateTime DatabaseEntry::modifiedAt() const { return _modifiedAt; }
 
-SecureQByteArray DatabaseEntry::password() const
+SecureBuffer<QChar> DatabaseEntry::password(const SecureBuffer<std::byte>& masterKey) const
 {
-    SecureQByteArray result;
-    Crypto::decrypt(_encryptedPassword, _key, _nonce, result);
-    return result;
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_key, masterKey, _keyNonce);
+    SecureBuffer<std::byte> password = Crypto::decrypt(_password, entryKey, _passwordNonce);
+    return Crypto::byteToQChar(password);
 }
 
-void DatabaseEntry::setPassword(const SecureQByteArray& password)
+void DatabaseEntry::setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey)
 {
-    Crypto::generateKey(_key);
-    Crypto::encrypt(password, _key, _encryptedPassword, _nonce);
-    _modifiedAt = QDateTime::currentDateTimeUtc();
+    recordHistory();
+
+    SecureBuffer<std::byte> entryKey = Crypto::generateKey();
+    QByteArray passwordNonce = Crypto::generateNonce();
+    QByteArray newPassword = Crypto::encrypt(Crypto::qCharToByte(password), entryKey, passwordNonce);
+
+    QByteArray keyNonce = Crypto::generateNonce();
+    QByteArray encryptedKey = Crypto::encrypt(entryKey, masterKey, keyNonce);
+
+    _keyNonce = keyNonce;
+    _key = encryptedKey;
+    _passwordNonce = passwordNonce;
+    _password = newPassword;
+}
+
+const QVector<DatabaseEntryHistoryItem>& DatabaseEntry::history() const { return _history; }
+
+const DatabaseEntryHistoryItem& DatabaseEntry::getHistoryItem(const QUuid& itemUid) const
+{
+    for (const DatabaseEntryHistoryItem& item : _history)
+        if (item.itemUid() == itemUid)
+            return item;
+    throw std::runtime_error("History item does not exist");
 }
 
 QJsonObject DatabaseEntry::toJson() const
@@ -93,9 +123,26 @@ QJsonObject DatabaseEntry::toJson() const
     obj["group"] = _group.toString(QUuid::StringFormat::WithoutBraces);
     obj["title"] = _title;
     obj["username"] = _username;
-    obj["password"] = password().data();
     obj["notes"] = _notes;
     obj["created"] = _createdAt.toSecsSinceEpoch();
     obj["modified"] = _modifiedAt.toSecsSinceEpoch();
+
+    obj["keyNonce"] = QString(_keyNonce.toBase64());
+    obj["key"] = QString(_key.toBase64());
+    obj["passwordNonce"] = QString(_passwordNonce.toBase64());
+    obj["password"] = QString(_password.toBase64());
+
+    QJsonArray history;
+    for (const DatabaseEntryHistoryItem& item : _history)
+        history.append(item.toJson());
+    obj["history"] = history;
+
     return obj;
+}
+
+void DatabaseEntry::recordHistory()
+{
+    _history.append(DatabaseEntryHistoryItem(_username, _keyNonce, _key, _passwordNonce, _password));
+    while (_history.size() > Config::constants::MAX_DB_ENTRY_HISTORY_ITEMS)
+        _history.removeFirst();
 }

@@ -1,5 +1,6 @@
 #include "PasswordGenerator.h"
 #include "ui_PasswordGenerator.h"
+#include "../core/SecureBuffer.h"
 #include "../config/Constants.h"
 #include "../core/Crypto.h"
 #include <QStringBuilder>
@@ -38,36 +39,36 @@ void PasswordGenerator::generate()
 
 void PasswordGenerator::buildCharset()
 {
-    QSet<char> result;
+    QSet<QChar> result;
 
     if (ui->pbPasswdUppercaseLetters->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_UPPERCASE_LETTERS)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdLowercaseLetters->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_LOWERCASE_LETTERS)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdNumbers->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_NUMBERS)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdPunctuation->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_PUNCTUATION)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdSpecialChars1->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_SPECIAL_CHARS1)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdSpecialChars2->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_SPECIAL_CHARS2)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdSpecialChars3->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_SPECIAL_CHARS3)
-            result.insert(chr);
+            result.insert(QChar(chr));
     if (ui->pbPasswdSpecialChars4->isChecked())
         for (const char& chr : Config::constants::PASSWD_GEN_SPECIAL_CHARS4)
-            result.insert(chr);
+            result.insert(QChar(chr));
     for (const char chr : ui->lePasswdExtraChars->text().toUtf8())
-        result.insert(chr);
+        result.insert(QChar(chr));
 
-    _charset = QVector<char>(result.cbegin(), result.cend());
+    _charset = QVector<QChar>(result.cbegin(), result.cend());
 }
 
 void PasswordGenerator::buildWordlist()
@@ -160,30 +161,37 @@ void PasswordGenerator::setPassphraseTab()
 
 void PasswordGenerator::generatePassword()
 {
-    SecureQByteArray password;
-    Crypto::generateRandomPassword(_charset, ui->hsPasswordLength->value(), password);
-    ui->lePassword->setText(password);
+    SecureBuffer<QChar> password = Crypto::generateRandomPassword(_charset, ui->hsPasswordLength->value());
+    ui->lePassword->setText(QString(password.data(), static_cast<int>(password.size())));
 }
 
 void PasswordGenerator::generatePassphrase()
 {
-    QStringList words;
-    words.reserve(ui->hsPassphraseWordCount->value());
+    QString separator = ui->lePassphraseSeparator->text();
+    separator = (separator.isEmpty() ? " " : separator);
+    SecureBuffer<quint32> randomNums = Crypto::generateRandomUnsignedIntegers(_wordlist.size(), ui->hsPassphraseWordCount->value());
 
-    QVector<quint32> indexes = Crypto::generateRandomUnsignedIntegers(_wordlist.size(), ui->hsPassphraseWordCount->value());
-    for (quint32 index : indexes) {
-        QString word(_wordlist.at(index).toUtf8());
-        switch (ui->cbPassphraseWordCase->currentIndex()) {
-            case 0: word = word.toLower(); break;
-            case 1: word = word.toUpper(); break;
-            case 2: {
-                word = word.toLower();
-                word[0] = word[0].toUpper();
-            }; break;
+    qsizetype passphraseLength = 0;
+    for (qsizetype i = 0; i < randomNums.size(); i++)
+        passphraseLength += _wordlist.at(randomNums[i]).size();
+    passphraseLength += ((separator.size() * (randomNums.size() - 1)));
+
+    qsizetype passphraseIndex = 0;
+    SecureBuffer<QChar> passphrase(passphraseLength);
+
+    for (qsizetype randomNum = 0; randomNum < randomNums.size(); randomNum++) {
+        if (randomNum != 0)
+            for (QChar sep : separator)
+                passphrase[passphraseIndex++] = sep;
+
+        const QString& word = _wordlist.at(randomNums[randomNum]);
+        for (qsizetype chr = 0; chr < word.size(); chr++) {
+            switch (chr) {
+                case 0:  passphrase[passphraseIndex++] = (ui->cbPassphraseWordCase->currentIndex() == 0 ? word.at(chr).toLower() : word.at(chr).toUpper()); break;
+                default: passphrase[passphraseIndex++] = (ui->cbPassphraseWordCase->currentIndex() == 1 ? word.at(chr).toUpper() : word.at(chr).toLower()); break;
+            }
         }
-        words.append(word);
     }
 
-    QString separator = ui->lePassphraseSeparator->text();
-    ui->lePassword->setText(words.join(separator.isEmpty() ? " " : separator));
+    ui->lePassword->setText(QString(passphrase.data(), static_cast<int>(passphrase.size())));
 }

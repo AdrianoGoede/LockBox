@@ -19,7 +19,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void copyTextToClipboard(const QByteArray& text) const;
+    void copyTextToClipboard(const QString& text) const;
 
 private slots:
     void newDatabase();

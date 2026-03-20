@@ -5,14 +5,13 @@
 #include <QUuid>
 #include <QList>
 #include <QFile>
-#include <chrono>
 #include <QString>
 #include <QObject>
 #include <QJsonObject>
+#include "SecureBuffer.h"
 #include "DatabaseGroup.h"
 #include "DatabaseEntry.h"
 #include "SecureQByteArray.h"
-#include "DatabaseEntryHistoryItem.h"
 
 struct NewDbConfig {
     QString dbFilePath;
@@ -24,7 +23,7 @@ struct DatabaseSettings {
     quint32 kdfIterations, kdfParallelism, compressionLevel;
     bool saveOnModification, saveOnLocking;
     int clearClipboardAfter, lockAfter;
-    SecureQByteArray password;
+    SecureBuffer<QChar> password;
 };
 
 class Database : public QObject
@@ -33,7 +32,7 @@ class Database : public QObject
 
 public:
     Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent = nullptr);
-    Database(const QString& filePath, const SecureQByteArray& password, QObject* parent = nullptr);
+    Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent = nullptr);
     ~Database() = default;
     void save();
     void saveAs(const QString& path);
@@ -47,11 +46,12 @@ public:
     void removeGroup(const QUuid& uid);
     size_t entryCount() const;
     size_t groupCount() const;
-    const DatabaseEntry& entry(const QUuid& uid) const;
-    const DatabaseEntry& entry(int index) const;
-    const DatabaseGroup& group(const QUuid& uid) const;
-    const DatabaseGroup& group(int index) const;
-    QList<DatabaseEntryHistoryItem> entryHistory(const QUuid& entryUid) const;
+    SecureBuffer<QChar> entryPassword(const QUuid& entryUid) const;
+    SecureBuffer<QChar> entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const;
+    const DatabaseEntry* entry(const QUuid& uid) const;
+    const DatabaseEntry* entry(int index) const;
+    const DatabaseGroup* group(const QUuid& uid) const;
+    const DatabaseGroup* group(int index) const;
     QVector<const DatabaseGroup*> childrenOfGroup(const DatabaseGroup* group) const;
     QVector<QUuid> entriesOfGroup(const QUuid& group) const;
     qsizetype indexOfEntry(const QUuid& uid) const;
@@ -76,7 +76,7 @@ private slots:
 
 private:
     QString _filePath;
-    SecureQByteArray _masterKey;
+    SecureBuffer<std::byte> _masterKey;
     quint64 _kdfMemory;
     quint32 _kdfIterations, _kdfParallelism, _compressionLevel;
     QByteArray _kdfSalt, _cryptoNonce;
@@ -85,12 +85,10 @@ private:
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
-    QHash<QUuid, QList<DatabaseEntryHistoryItem>> _entryHistory;
-    void loadHeader(const QJsonObject& header, const SecureQByteArray& password);
+    void loadHeader(const QJsonObject& header, const SecureBuffer<QChar>& password);
     void loadBody(const QByteArray& body);
     void loadSettings(const QJsonObject& settings);
     void loadData(const QJsonObject& data);
-    void recordHistory(const QUuid& entryUid);
 };
 
 #endif // DATABASE_H

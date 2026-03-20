@@ -2,6 +2,7 @@
 #include "ui_MainWindow.h"
 #include "NewDatabase.h"
 #include "../core/EntryActionButtonDelegate.h"
+#include "../core/SecureBuffer.h"
 #include "../config/Constants.h"
 #include "DatabaseGroupManager.h"
 #include "DatabaseEntryManager.h"
@@ -26,7 +27,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::copyTextToClipboard(const QByteArray& text) const
+void MainWindow::copyTextToClipboard(const QString& text) const
 {
     QClipboard* clipboard = QGuiApplication::clipboard();
     if (clipboard && !text.isEmpty()) {
@@ -101,19 +102,22 @@ void MainWindow::openDatabase()
             return;
 
         bool ok;
-        SecureQByteArray password(QInputDialog::getText(
+        QString passwordInput = QInputDialog::getText(
             this,
             "Enter the password",
             QString(),
             QLineEdit::EchoMode::Password,
             QString(),
             &ok
-        ).toUtf8());
+        );
 
         if (!ok)
             return;
-        else if (password.isEmpty())
+        else if (passwordInput.isEmpty())
             throw std::runtime_error("Password cannot be empty!");
+
+        SecureBuffer<QChar> password(passwordInput.size());
+        std::memcpy(password.data(), passwordInput.constData(), password.byteSize());
 
         _database = std::make_unique<Database>(path, password);
         _groupsModel->setDatabase(_database.get());
@@ -290,20 +294,20 @@ void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIn
 void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
 {
     try {
-        QModelIndex index = ui->tvGroups->currentIndex();
-        if (!index.isValid()) return;
-        const DatabaseGroup* group = (existingEntry ? &_database->group(existingEntry->group()) : static_cast<const DatabaseGroup*>(index.internalPointer()));
-        if (!group) return;
-        QList<DatabaseEntryHistoryItem> history = (existingEntry ? _database->entryHistory(existingEntry->uid()) : QList<DatabaseEntryHistoryItem>());
-        DatabaseEntry entry;
-        DatabaseEntryManager manager(&entry, group, existingEntry, &history, this);
+        // QModelIndex index = ui->tvGroups->currentIndex();
+        // if (!index.isValid()) return;
+        // const DatabaseGroup* group = (existingEntry ? _database->group(existingEntry->group()) : static_cast<const DatabaseGroup*>(index.internalPointer()));
+        // if (!group) return;
+        // QList<DatabaseEntryHistoryItem> history = (existingEntry ? _database->entryHistory(existingEntry->uid()) : QList<DatabaseEntryHistoryItem>());
+        // DatabaseEntry entry;
+        // DatabaseEntryManager manager(&entry, group, existingEntry, &history, this);
 
-        if (manager.exec() == QDialog::DialogCode::Accepted) {
-            if (existingEntry)
-                _database->editEntry(entry);
-            else
-                _database->addEntry(entry);
-        }
+        // if (manager.exec() == QDialog::DialogCode::Accepted) {
+        //     if (existingEntry)
+        //         _database->editEntry(entry);
+        //     else
+        //         _database->addEntry(entry);
+        // }
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -324,7 +328,7 @@ void MainWindow::copyEntryUsername(const DatabaseEntry* entry)
 void MainWindow::copyEntryPassword(const DatabaseEntry* entry)
 {
     if (!entry) return;
-    copyTextToClipboard(entry->password());
+    //copyTextToClipboard(entry->password());
 }
 
 void MainWindow::autotypeEntry()
@@ -357,16 +361,16 @@ void MainWindow::newGroup()
 void MainWindow::editGroup()
 {
     try {
-        QModelIndex index = ui->tvGroups->currentIndex();
-        if (!index.isValid()) return;
-        const DatabaseGroup* existingGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
-        if (!existingGroup) return;
-        const DatabaseGroup* parentGroup = (!existingGroup->parent().isNull() ? &_database->group(existingGroup->parent()) : nullptr);
-        DatabaseGroup group(existingGroup->uid());
-        DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
+        // QModelIndex index = ui->tvGroups->currentIndex();
+        // if (!index.isValid()) return;
+        // const DatabaseGroup* existingGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
+        // if (!existingGroup) return;
+        // const DatabaseGroup* parentGroup = (!existingGroup->parent().isNull() ? _database->group(existingGroup->parent()) : nullptr);
+        // DatabaseGroup group(existingGroup->uid());
+        // DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
 
-        if (manager.exec() == QDialog::DialogCode::Accepted)
-            _database->editGroup(group);
+        // if (manager.exec() == QDialog::DialogCode::Accepted)
+        //     _database->editGroup(group);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(

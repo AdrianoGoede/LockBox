@@ -44,16 +44,18 @@ QModelIndex DatabaseGroupTreeModel::parent(const QModelIndex& index) const
     if (parentUuid.isNull())
         return {};
 
-    const DatabaseGroup& parentGroup = _database->group(parentUuid);
-    QUuid grandParentUuid = parentGroup.parent();
-    const DatabaseGroup* grandParentGroup = (!grandParentUuid.isNull() ? &_database->group(grandParentUuid) : nullptr);
+    const DatabaseGroup* parentGroup = _database->group(parentUuid);
+    if (!parentGroup) return {};
+
+    QUuid grandParentUuid = parentGroup->parent();
+    const DatabaseGroup* grandParentGroup = (!grandParentUuid.isNull() ? _database->group(grandParentUuid) : nullptr);
     QVector<const DatabaseGroup*> siblings = _database->childrenOfGroup(grandParentGroup);
-    int row = siblings.indexOf(&parentGroup);
+    int row = siblings.indexOf(parentGroup);
 
     return (row < 0 ? QModelIndex() : createIndex(
         row,
         0,
-        const_cast<DatabaseGroup*>(&parentGroup)
+        const_cast<DatabaseGroup*>(parentGroup)
     ));
 }
 

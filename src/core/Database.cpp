@@ -15,7 +15,7 @@ Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDa
     save();
 }
 
-Database::Database(const QString& filePath, const SecureQByteArray& password, QObject* parent) : QObject{parent}, _filePath{filePath}
+Database::Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent) : QObject{parent}, _filePath{filePath}
 {
     QFile file(filePath);
     if (!file.open(QIODevice::OpenModeFlag::ReadOnly))
@@ -41,10 +41,6 @@ void Database::save()
     QJsonArray dataEntries;
     for (const DatabaseEntry& entry : _dbEntries)
         dataEntries.append(entry.toJson());
-    QJsonArray dataEntryHistory;
-    for (const QList<DatabaseEntryHistoryItem>& itemList : _entryHistory)
-        for (const DatabaseEntryHistoryItem& item : itemList)
-            dataEntryHistory.append(item.toJson());
 
     QJsonObject bodyObj {
         { "settings", QJsonObject {
@@ -56,21 +52,17 @@ void Database::save()
         }},
         { "data", QJsonObject {
             { "groups", QJsonValue::fromVariant(dataGroups) },
-            { "entries", QJsonValue::fromVariant(dataEntries) },
-            { "entryHistory", QJsonValue::fromVariant(dataEntryHistory) }
+            { "entries", QJsonValue::fromVariant(dataEntries) }
         }}
     };
 
-    QByteArray encryptedData;
-    Crypto::encrypt(
-        SecureQByteArray(
-            qCompress(QJsonDocument(bodyObj).toJson(QJsonDocument::JsonFormat::Compact),
-            _compressionLevel)
-        ),
-        _masterKey,
-        encryptedData,
-        _cryptoNonce
-    );
+    QByteArray compressedData = qCompress(QJsonDocument(bodyObj).toJson(QJsonDocument::JsonFormat::Compact), _compressionLevel);
+    SecureBuffer<std::byte> compressedBuffer(compressedData.size());
+    for (qsizetype i = 0; i < compressedData.size(); i++)
+        compressedBuffer[i] = static_cast<std::byte>(compressedData[i]);
+
+    _cryptoNonce = Crypto::generateNonce();
+    QByteArray encryptedData = Crypto::encrypt(compressedBuffer, _masterKey, _cryptoNonce);
 
     QJsonObject jsonObj;
     jsonObj["header"] = QJsonObject{
@@ -141,7 +133,6 @@ void Database::editEntry(const DatabaseEntry& entry)
 {
     if (!_dbEntries.contains(entry.uid()))
         throw std::runtime_error("Entry does not exist");
-    recordHistory(entry.uid());
     _dbEntries[entry.uid()] = entry;
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
@@ -170,7 +161,6 @@ void Database::removeEntry(const QUuid& uid)
     if (row < 0) return;
     _dbEntryKeys.removeAt(row);
     _dbEntries.remove(uid);
-    _entryHistory.remove(uid);
     emit entryRemoved(row, uid);
 }
 
@@ -203,37 +193,52 @@ size_t Database::entryCount() const { return _dbEntries.size(); }
 
 size_t Database::groupCount() const { return _dbGroups.size(); }
 
-const DatabaseEntry& Database::entry(const QUuid& uid) const
+SecureBuffer<QChar> Database::entryPassword(const QUuid& entryUid) const
+{
+    if (_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries[entryUid];
+    return entry.password(_masterKey);
+}
+
+SecureBuffer<QChar> Database::entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const
+{
+    if (_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries[entryUid];
+    const DatabaseEntryHistoryItem& item = entry.getHistoryItem(historyItemUid);
+    return item.password(_masterKey);
+}
+
+const DatabaseEntry* Database::entry(const QUuid& uid) const
 {
     if (!_dbEntries.contains(uid))
-        throw std::runtime_error("Entry not found");
-    return _dbEntries.find(uid).value();
+        return nullptr;
+    return &_dbEntries.find(uid).value();
 }
 
-const DatabaseEntry& Database::entry(int index) const
+const DatabaseEntry* Database::entry(int index) const
 {
     if (index >= _dbEntryKeys.size())
-        throw std::runtime_error("Index out of range");
+        return nullptr;
     const QUuid& uid = _dbEntryKeys[index];
-    return _dbEntries.find(uid).value();
+    return &_dbEntries.find(uid).value();
 }
 
-const DatabaseGroup& Database::group(const QUuid &uid) const
+const DatabaseGroup* Database::group(const QUuid &uid) const
 {
     if (!_dbGroups.contains(uid))
-        throw std::runtime_error("Group not found");
-    return _dbGroups.find(uid).value();
+        return nullptr;
+    return &_dbGroups.find(uid).value();
 }
 
-const DatabaseGroup& Database::group(int index) const
+const DatabaseGroup* Database::group(int index) const
 {
     if (index >= _dbGroupKeys.size())
-        throw std::runtime_error("Index out of range");
+        return nullptr;
     const QUuid& uid = _dbGroupKeys[index];
-    return _dbGroups.find(uid).value();
+    return &_dbGroups.find(uid).value();
 }
-
-QList<DatabaseEntryHistoryItem> Database::entryHistory(const QUuid& entryUid) const { return _entryHistory.value(entryUid, QList<DatabaseEntryHistoryItem>()); }
 
 QVector<const DatabaseGroup*> Database::childrenOfGroup(const DatabaseGroup* group) const
 {
@@ -270,7 +275,7 @@ DatabaseSettings Database::settings() const
         _saveOnLocking,
         _clearClipboardAfter,
         _lockAfter,
-        SecureQByteArray()
+        SecureBuffer<QChar>()
     };
 }
 
@@ -301,14 +306,14 @@ void Database::setSettings(const DatabaseSettings& settings)
     _lockAfter = settings.lockAfter;
 
     if (!settings.password.isEmpty()) {
-        Crypto::generateSalt(_kdfSalt);
-        Crypto::deriveKey(settings.password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+        _kdfSalt = Crypto::generateSalt();
+        _masterKey = Crypto::deriveKey(Crypto::qCharToByte(settings.password), _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
     }
 }
 
 void Database::handleDatabaseStateChange() { if (_saveOnModification) save(); }
 
-void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& password)
+void Database::loadHeader(const QJsonObject& header, const SecureBuffer<QChar>& password)
 {
     QJsonObject obj = header["kdf"].toObject();
     if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
@@ -322,16 +327,16 @@ void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& pas
     _cryptoNonce = QByteArray::fromBase64(obj["nonce"].toString().toUtf8());
     if (_cryptoNonce.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
 
-    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+    _masterKey = Crypto::deriveKey(Crypto::qCharToByte(password), _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
 }
 
 void Database::loadBody(const QByteArray& body)
 {
-    SecureQByteArray plaintext;
-    Crypto::decrypt(body, _masterKey, _cryptoNonce, plaintext);
+    SecureBuffer<std::byte> plaintext = Crypto::decrypt(body, _masterKey, _cryptoNonce);
+    QByteArrayView view(plaintext.data(), plaintext.byteSize());
 
     QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(qUncompress(plaintext), &parseError);
+    QJsonDocument doc = QJsonDocument::fromJson(qUncompress(QByteArray(view)), &parseError);
     if (parseError.error != QJsonParseError::ParseError::NoError)
         throw std::runtime_error("Invalid or corrupted database file");
 
@@ -366,21 +371,4 @@ void Database::loadData(const QJsonObject& data)
         _dbEntryKeys.append(entry.uid());
         _dbEntries[entry.uid()] = std::move(entry);
     }
-
-    array = data["entryHistory"].toArray();
-    for (const QJsonValueRef& entryRef : array) {
-        DatabaseEntryHistoryItem item(entryRef.toObject());
-        if (!_entryHistory.contains(item.entryUid()))
-            _entryHistory[item.entryUid()] = QList<DatabaseEntryHistoryItem>();
-        _entryHistory[item.entryUid()].append(DatabaseEntryHistoryItem(entryRef.toObject()));
-    }
-}
-
-void Database::recordHistory(const QUuid& entryUid)
-{
-    if (!_entryHistory.contains(entryUid))
-        _entryHistory[entryUid] = QList<DatabaseEntryHistoryItem>();
-    _entryHistory[entryUid].append(DatabaseEntryHistoryItem(_dbEntries[entryUid]));
-    while (_entryHistory[entryUid].size() > Config::constants::MAX_DB_ENTRY_HISTORY_ITEMS)
-        _entryHistory[entryUid].removeFirst();
 }

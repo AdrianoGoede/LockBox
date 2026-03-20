@@ -47,18 +47,18 @@ DatabaseSettingsManager::~DatabaseSettingsManager() { delete ui; }
 void DatabaseSettingsManager::changePassword()
 {
     bool ok;
-    _settings.password.wipe();
-    _settings.password.append(QInputDialog::getText(
+    QString newPassword = QInputDialog::getText(
         this,
         "Enter the new password",
         QString(),
         QLineEdit::EchoMode::Password,
         QString(),
         &ok
-    ).toUtf8());
+    );
+    if (!ok) return;
 
-    if (!ok)
-        _settings.password.wipe();
+    _settings.password = SecureBuffer<QChar>(newPassword.size());
+    std::memcpy(_settings.password.data(), newPassword.constData(), _settings.password.byteSize());
     setKdfSettingsEnabled(ok);
 }
 
@@ -90,7 +90,7 @@ void DatabaseSettingsManager::accept()
 
 void DatabaseSettingsManager::reject()
 {
-    _settings.password.wipe();
+    _settings.password = SecureBuffer<QChar>();
     QDialog::reject();
 }
 
