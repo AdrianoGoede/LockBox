@@ -14,7 +14,7 @@ class DatabaseEntryManager : public QDialog
     Q_OBJECT
 
 public:
-    explicit DatabaseEntryManager(DatabaseEntry* entryDto, const Database* database, const QUuid& entryUid, const QUuid& groupUid);
+    explicit DatabaseEntryManager(DatabaseEntryDto* entryDto, const Database* database, const DatabaseEntry* entry, const DatabaseGroup* group, QWidget *parent = nullptr);
     ~DatabaseEntryManager();
 
 private slots:
@@ -25,9 +25,8 @@ private slots:
 
 private:
     Ui::DatabaseEntryManager* ui;
-    DatabaseEntry* _entryDto = nullptr;
+    DatabaseEntryDto* _entryDto = nullptr;
     const Database* _database = nullptr;
-    QUuid _entryUid;
     const DatabaseEntry* _entry = nullptr;
     const DatabaseGroup* _group = nullptr;
     void setDataFields();

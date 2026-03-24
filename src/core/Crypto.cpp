@@ -152,10 +152,91 @@ SecureBuffer<quint32> Crypto::generateRandomUnsignedIntegers(quint32 upperBound,
 
 SecureBuffer<std::byte> Crypto::qCharToByte(const SecureBuffer<QChar>& input)
 {
-    return SecureBuffer<std::byte>(0); // TO DO!!
+    if (input.size() == 0) return SecureBuffer<std::byte>(0);
+
+    SecureBuffer<std::byte> tempBuffer(input.size() * 4);
+    size_t outIdx = 0;
+
+    for (qsizetype i = 0; i < input.size(); i++) {
+        char32_t cp = input[i].unicode();
+
+        if (input[i].isHighSurrogate() && (i + 1) < input.size() && input[i+1].isLowSurrogate()) {
+            cp = QChar::surrogateToUcs4(input[i], input[i+1]);
+            i++;
+        }
+
+        if (cp <= 0x7F) {
+            tempBuffer[outIdx++] = static_cast<std::byte>(cp);
+        }
+        else if (cp <= 0x7FF) {
+            tempBuffer[outIdx++] = static_cast<std::byte>(0xC0 | ((cp >> 6) & 0x1F));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | (cp & 0x3F));
+        }
+        else if (cp <= 0xFFFF) {
+            tempBuffer[outIdx++] = static_cast<std::byte>(0xE0 | ((cp >> 12) & 0x0F));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | ((cp >> 6) & 0x3F));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | (cp & 0x3F));
+        }
+        else {
+            tempBuffer[outIdx++] = static_cast<std::byte>(0xF0 | ((cp >> 18) & 0x07));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | ((cp >> 12) & 0x3F));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | ((cp >> 6) & 0x3F));
+            tempBuffer[outIdx++] = static_cast<std::byte>(0x80 | (cp & 0x3F));
+        }
+    }
+
+    SecureBuffer<std::byte> output(outIdx);
+    std::memcpy(output.data(), tempBuffer.data(), output.byteSize());
+    return output;
 }
 
 SecureBuffer<QChar> Crypto::byteToQChar(const SecureBuffer<std::byte>& input)
 {
-    return SecureBuffer<QChar>(0); // TO DO!!
+    if (input.size() == 0) return SecureBuffer<QChar>(0);
+
+    SecureBuffer<QChar> tempBuffer(input.size());
+    size_t outIdx = 0;
+
+    for (qsizetype i = 0; i < input.size();) {
+        uint32_t cp = 0;
+        uint8_t b = static_cast<uint8_t>(input[i]);
+
+        if (b <= 0x7F) {
+            cp = b;
+            i += 1;
+        }
+        else if ((b & 0xE0) == 0xC0 && (i + 1) < input.size()) {
+            cp = (b & 0x1F) << 6;
+            cp |= (static_cast<uint8_t>(input[i + 1]) & 0x3F);
+            i += 2;
+        }
+        else if ((b & 0xF0) == 0xE0 && (i + 2) < input.size()) {
+            cp = (b & 0x0F) << 12;
+            cp |= (static_cast<uint8_t>(input[i + 1]) & 0x3F) << 6;
+            cp |= (static_cast<uint8_t>(input[i + 2]) & 0x3F);
+            i += 3;
+        }
+        else if ((b & 0xF8) == 0xF0 && (i + 3) < input.size()) {
+            cp = (b & 0x07) << 18;
+            cp |= (static_cast<uint8_t>(input[i + 1]) & 0x3F) << 12;
+            cp |= (static_cast<uint8_t>(input[i + 2]) & 0x3F) << 6;
+            cp |= (static_cast<uint8_t>(input[i + 3]) & 0x3F);
+            i += 4;
+        }
+        else {
+            i++;
+            continue;
+        }
+
+        if (cp < 0x10000) {
+            tempBuffer[outIdx++] = QChar(static_cast<ushort>(cp));
+        } else {
+            tempBuffer[outIdx++] = QChar(QChar::highSurrogate(cp));
+            tempBuffer[outIdx++] = QChar(QChar::lowSurrogate(cp));
+        }
+    }
+
+    SecureBuffer<QChar> output(outIdx);
+    std::memcpy(output.data(), tempBuffer.data(), output.byteSize());
+    return output;
 }

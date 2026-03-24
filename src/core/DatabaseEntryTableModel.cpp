@@ -3,7 +3,9 @@
 
 DatabaseEntryTableModel::DatabaseEntryTableModel(QObject* parent) : QAbstractTableModel{parent} {}
 
-void DatabaseEntryTableModel::setDatabase(Database* database)
+const Database *DatabaseEntryTableModel::database() const { return _database; }
+
+void DatabaseEntryTableModel::setDatabase(const Database* database)
 {
     beginResetModel();
 
@@ -41,7 +43,7 @@ QVariant DatabaseEntryTableModel::data(const QModelIndex& index, int role) const
         }
     }
     else if (role == Qt::UserRole + 1)
-        return QVariant::fromValue(&entry);
+        return QVariant::fromValue(entry->uid());
 
     return QVariant();
 }

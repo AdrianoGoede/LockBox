@@ -3,7 +3,6 @@
 
 #include <QObject>
 #include <QStyledItemDelegate>
-#include "DatabaseEntry.h"
 
 class EntryActionButtonDelegate : public QStyledItemDelegate
 {
@@ -15,7 +14,7 @@ public:
     bool editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option, const QModelIndex& index) override;
 
 signals:
-    void clicked(const DatabaseEntry* entry);
+    void clicked(const QUuid entryUuid);
 
 private:
     QIcon _icon;

@@ -1,7 +1,6 @@
 #ifndef CRYPTO_H
 #define CRYPTO_H
 
-#include "SecureQByteArray.h"
 #include "SecureBuffer.h"
 #include <QVector>
 #include <chrono>

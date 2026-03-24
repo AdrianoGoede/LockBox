@@ -28,8 +28,6 @@ DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, con
     connect(ui->cbLockAfterInactivity, &QCheckBox::checkStateChanged, ui->sbLockAfterInactivity, &QSpinBox::setEnabled);
     connect(ui->pbChangePassword, &QAbstractButton::clicked, this, &DatabaseSettingsManager::changePassword);
     connect(ui->pbSetUnlockTime, &QAbstractButton::clicked, this, &DatabaseSettingsManager::setUnlockTime);
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     ui->cbAutosave->setChecked(_existingSettings ? _existingSettings->saveOnModification : Config::constants::DEFAULT_SAVE_ON_MODIFICATION);
     ui->sbCompressionLevel->setValue(_existingSettings ? _existingSettings->compressionLevel : Config::constants::DEFAULT_COMPRESSION_LEVEL);

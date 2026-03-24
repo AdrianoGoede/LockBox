@@ -11,8 +11,6 @@ DatabaseGroupManager::DatabaseGroupManager(DatabaseGroup* group, const DatabaseG
     this->setWindowTitle(_group->title().isEmpty() ? "New Group" : "Edit Group");
     ui->leGroupParent->setText(_parentGroup ? _parentGroup->title() : "Root");
     ui->leGroupName->setText(_existingGroup ? _existingGroup->title() : QString());
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 DatabaseGroupManager::~DatabaseGroupManager() { delete ui; }

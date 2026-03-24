@@ -1,8 +1,9 @@
 #include "EntryActionButtonDelegate.h"
 #include <QApplication>
 #include <QMouseEvent>
+#include <QUuid>
 
-EntryActionButtonDelegate::EntryActionButtonDelegate(const QIcon& icon, QObject *parent) : QStyledItemDelegate(parent), _icon(icon) {}
+EntryActionButtonDelegate::EntryActionButtonDelegate(const QIcon& icon, QObject* parent) : QStyledItemDelegate(parent), _icon(icon) {}
 
 void EntryActionButtonDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
@@ -23,7 +24,7 @@ bool EntryActionButtonDelegate::editorEvent(QEvent* event, QAbstractItemModel* m
     if (event->type() == QEvent::MouseButtonRelease) {
         QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
         if (option.rect.contains(mouseEvent->pos())) {
-            emit clicked(index.data(Qt::UserRole + 1).value<const DatabaseEntry*>());
+            emit clicked(index.data(Qt::UserRole + 1).value<QUuid>());
             return true;
         }
     }

@@ -6,7 +6,7 @@
 #include <QJsonArray>
 #include <QSaveFile>
 
-Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject{parent}, _filePath{newDbConfig.dbFilePath}
+Database::Database(const QString& filePath, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject(parent), _filePath(filePath)
 {
     setSettings(newDatabaseSettings);
     DatabaseGroup rootGroup;
@@ -15,7 +15,7 @@ Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDa
     save();
 }
 
-Database::Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent) : QObject{parent}, _filePath{filePath}
+Database::Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent) : QObject(parent), _filePath(filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::OpenModeFlag::ReadOnly))
@@ -102,18 +102,11 @@ void Database::saveAs(const QString& path)
     }
 }
 
-void Database::addEntry(const DatabaseEntry& entry)
+void Database::addEntry(const DatabaseEntryDto& entryDto)
 {
-    if (_dbEntries.contains(entry.uid()))
-        throw std::runtime_error("Entry already exists");
-    if (entry.title().trimmed().isEmpty())
-        throw std::runtime_error("Entry must have a title");
-    if (entry.group().isNull())
-        throw std::runtime_error("Entry must have a valid parent");
-
+    DatabaseEntry entry(entryDto, _masterKey);
     _dbEntryKeys.append(entry.uid());
     _dbEntries[entry.uid()] = entry;
-
     emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
 }
 
@@ -129,11 +122,19 @@ void Database::addGroup(const DatabaseGroup& group)
     emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
 }
 
-void Database::editEntry(const DatabaseEntry& entry)
+void Database::editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto)
 {
-    if (!_dbEntries.contains(entry.uid()))
+    if (!_dbEntries.contains(entryUid))
         throw std::runtime_error("Entry does not exist");
-    _dbEntries[entry.uid()] = entry;
+
+    DatabaseEntry& entry = _dbEntries[entryUid];
+    entry.recordHistory();
+
+    entry.setTitle(entryDto.title);
+    entry.setUsername(entryDto.username);
+    entry.setNotes(entryDto.notes);
+    entry.setPassword(entryDto.password, _masterKey);
+
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
 
@@ -195,17 +196,17 @@ size_t Database::groupCount() const { return _dbGroups.size(); }
 
 SecureBuffer<QChar> Database::entryPassword(const QUuid& entryUid) const
 {
-    if (_dbEntries.contains(entryUid))
+    if (!_dbEntries.contains(entryUid))
         throw std::runtime_error("Entry does not exist");
-    const DatabaseEntry& entry = _dbEntries[entryUid];
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
     return entry.password(_masterKey);
 }
 
 SecureBuffer<QChar> Database::entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const
 {
-    if (_dbEntries.contains(entryUid))
+    if (!_dbEntries.contains(entryUid))
         throw std::runtime_error("Entry does not exist");
-    const DatabaseEntry& entry = _dbEntries[entryUid];
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
     const DatabaseEntryHistoryItem& item = entry.getHistoryItem(historyItemUid);
     return item.password(_masterKey);
 }

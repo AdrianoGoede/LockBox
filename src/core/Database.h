@@ -11,12 +11,6 @@
 #include "SecureBuffer.h"
 #include "DatabaseGroup.h"
 #include "DatabaseEntry.h"
-#include "SecureQByteArray.h"
-
-struct NewDbConfig {
-    QString dbFilePath;
-    SecureQByteArray password;
-};
 
 struct DatabaseSettings {
     quint64 kdfMemory;
@@ -31,14 +25,14 @@ class Database : public QObject
     Q_OBJECT
 
 public:
-    Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent = nullptr);
+    Database(const QString& filePath, const DatabaseSettings& newDatabaseSettings, QObject* parent = nullptr);
     Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent = nullptr);
     ~Database() = default;
     void save();
     void saveAs(const QString& path);
-    void addEntry(const DatabaseEntry& entry);
+    void addEntry(const DatabaseEntryDto& entryDto);
     void addGroup(const DatabaseGroup& group);
-    void editEntry(const DatabaseEntry& entry);
+    void editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto);
     void editGroup(const DatabaseGroup& group);
     void moveEntry(const QUuid& entry, const QUuid& group);
     void removeEntry(const QUuid& uid);
@@ -58,7 +52,6 @@ public:
     qsizetype indexOfGroup(const QUuid& uid) const;
     DatabaseSettings settings() const;
     void setSettings(const DatabaseSettings& settings);
-    void changePassword(const SecureQByteArray& password);
 
 signals:
     void entryAdded(qsizetype row, QUuid entryUuid);

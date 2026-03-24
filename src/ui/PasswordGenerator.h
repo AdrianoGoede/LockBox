@@ -3,7 +3,7 @@
 
 #include <QDialog>
 #include <QVector>
-#include "../core/SecureQByteArray.h"
+#include "../core/SecureBuffer.h"
 
 namespace Ui {
     class PasswordGenerator;
@@ -14,7 +14,7 @@ class PasswordGenerator : public QDialog
     Q_OBJECT
 
 public:
-    explicit PasswordGenerator(SecureQByteArray* out = nullptr, QWidget* parent = nullptr);
+    explicit PasswordGenerator(SecureBuffer<QChar>& out, QWidget* parent = nullptr);
     ~PasswordGenerator();
 
 public slots:
@@ -33,7 +33,7 @@ private slots:
 
 private:
     Ui::PasswordGenerator* ui;
-    SecureQByteArray* _out = nullptr;
+    SecureBuffer<QChar>& _out;
     QVector<QChar> _charset;
     QStringList _wordlist;
     void setPasswordTab();

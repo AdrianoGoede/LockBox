@@ -9,10 +9,17 @@
 #include "DatabaseGroup.h"
 #include "DatabaseEntryHistoryItem.h"
 
+struct DatabaseEntryDto {
+    QUuid group;
+    QString title, username, notes;
+    SecureBuffer<QChar> password;
+};
+
 class DatabaseEntry
 {
 public:
     DatabaseEntry();
+    DatabaseEntry(const DatabaseEntryDto& entryDto, const SecureBuffer<std::byte>& masterKey);
     DatabaseEntry(const QJsonObject& obj);
     QUuid uid() const;
     void setUid(const QUuid& uid);
@@ -29,6 +36,7 @@ public:
     QDateTime modifiedAt() const;
     SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
     void setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey);
+    void recordHistory();
     const QVector<DatabaseEntryHistoryItem>& history() const;
     const DatabaseEntryHistoryItem& getHistoryItem(const QUuid& itemUid) const;
     QJsonObject toJson() const;
@@ -40,7 +48,6 @@ private:
     QDateTime _createdAt, _modifiedAt;
     QByteArray _keyNonce, _key, _passwordNonce, _password;
     QVector<DatabaseEntryHistoryItem> _history;
-    void recordHistory();
 };
 
 #endif // DATABASEENTRY_H

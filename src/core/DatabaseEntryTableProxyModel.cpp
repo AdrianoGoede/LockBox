@@ -1,5 +1,5 @@
 #include "DatabaseEntryTableProxyModel.h"
-#include "DatabaseEntry.h"
+#include "DatabaseEntryTableModel.h"
 #include <QIODevice>
 
 DatabaseEntryTableProxyModel::DatabaseEntryTableProxyModel(QObject* parent) : QSortFilterProxyModel(parent) {}
@@ -73,7 +73,14 @@ void DatabaseEntryTableProxyModel::setModifiedToFilter(const QDateTime& timestam
 bool DatabaseEntryTableProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
 {
     QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
-    const DatabaseEntry* dbEntry = index.data(Qt::UserRole + 1).value<const DatabaseEntry*>();
+    const QUuid dbEntryUid = index.data(Qt::UserRole + 1).value<QUuid>();
+    if (dbEntryUid.isNull()) return false;
+
+    const DatabaseEntryTableModel* sourceModel = qobject_cast<const DatabaseEntryTableModel*>(this->sourceModel());
+    if (!sourceModel) return false;
+    const Database* database = sourceModel->database();
+    if (!database) return false;
+    const DatabaseEntry* dbEntry = database->entry(dbEntryUid);
     if (!dbEntry) return false;
 
     if (!_groupFilter.isNull() && dbEntry->group() != _groupFilter) return false;

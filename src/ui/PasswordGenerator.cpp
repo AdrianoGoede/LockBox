@@ -9,24 +9,26 @@
 #include <QSet>
 #include <QDir>
 
-PasswordGenerator::PasswordGenerator(SecureQByteArray* out, QWidget *parent) : QDialog(parent), ui(new Ui::PasswordGenerator), _out(out)
+PasswordGenerator::PasswordGenerator(SecureBuffer<QChar>& out, QWidget* parent) : QDialog(parent), ui(new Ui::PasswordGenerator), _out(out)
 {
     ui->setupUi(this);
     setPasswordTab();
     setPassphraseTab();
     connect(ui->pbGenerate, &QAbstractButton::clicked, this, &PasswordGenerator::generate);
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 }
 
 PasswordGenerator::~PasswordGenerator() { delete ui; }
 
 void PasswordGenerator::accept()
 {
-    if (!_out) return;
-    _out->wipe();
-    _out->resize(ui->lePassword->text().size() + 1);
-    _out->append(ui->lePassword->text().toUtf8());
+    QString input = ui->lePassword->text();
+    ui->lePassword->setText(QString(input.size(), 'X'));
+    ui->lePassword->clear();
+
+    _out = SecureBuffer<QChar>(input.size());
+    std::memcpy(_out.data(), input.constData(), _out.byteSize());
+    input.fill('X', input.size());
+    input.clear();
 }
 
 void PasswordGenerator::generate()
