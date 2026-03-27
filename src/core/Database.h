@@ -31,9 +31,9 @@ public:
     void save();
     void saveAs(const QString& path);
     void addEntry(const DatabaseEntryDto& entryDto);
-    void addGroup(const DatabaseGroup& group);
+    void addGroup(const DatabaseGroupDto& groupDto);
     void editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto);
-    void editGroup(const DatabaseGroup& group);
+    void editGroup(const QUuid& groupUid, const DatabaseGroupDto& groupDto);
     void moveEntry(const QUuid& entry, const QUuid& group);
     void removeEntry(const QUuid& uid);
     void moveGroup(const QUuid& group, const QUuid& newParent);

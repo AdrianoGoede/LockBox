@@ -363,12 +363,15 @@ void MainWindow::newGroup()
     try {
         QModelIndex index = ui->tvGroups->currentIndex();
         if (!index.isValid()) return;
-        const DatabaseGroup* parentGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
-        DatabaseGroup group;
-        DatabaseGroupManager manager(&group, nullptr, parentGroup, this);
+        QUuid groupUid = index.data(Qt::UserRole + 1).value<QUuid>();
+        if (groupUid.isNull()) return;
+        const DatabaseGroup* parentGroup = _database->group(groupUid);
+        if (!parentGroup) return;
+        DatabaseGroupDto groupDto;
+        DatabaseGroupManager manager(&groupDto, nullptr, parentGroup, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted)
-            _database->addGroup(group);
+            _database->addGroup(groupDto);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -383,16 +386,18 @@ void MainWindow::newGroup()
 void MainWindow::editGroup()
 {
     try {
-        // QModelIndex index = ui->tvGroups->currentIndex();
-        // if (!index.isValid()) return;
-        // const DatabaseGroup* existingGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
-        // if (!existingGroup) return;
-        // const DatabaseGroup* parentGroup = (!existingGroup->parent().isNull() ? _database->group(existingGroup->parent()) : nullptr);
-        // DatabaseGroup group(existingGroup->uid());
-        // DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
+        QModelIndex index = ui->tvGroups->currentIndex();
+        if (!index.isValid()) return;
+        QUuid groupUid = index.data(Qt::UserRole + 1).value<QUuid>();
+        if (groupUid.isNull()) return;
+        const DatabaseGroup* group = _database->group(groupUid);
+        if (!group) return;
+        const DatabaseGroup* parentGroup = (!group->parent().isNull() ? _database->group(group->parent()) : nullptr);
+        DatabaseGroupDto groupDto;
+        DatabaseGroupManager manager(&groupDto, group, parentGroup, this);
 
-        // if (manager.exec() == QDialog::DialogCode::Accepted)
-        //     _database->editGroup(group);
+        if (manager.exec() == QDialog::DialogCode::Accepted)
+            _database->editGroup(group->uid(), groupDto);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(

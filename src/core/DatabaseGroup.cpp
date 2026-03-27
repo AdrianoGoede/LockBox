@@ -3,7 +3,7 @@
 
 DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 
-DatabaseGroup::DatabaseGroup(const QUuid& uid) : _uid(uid) {}
+DatabaseGroup::DatabaseGroup(const DatabaseGroupDto& groupDto) : _uid(QUuid::createUuid()), _title(groupDto.title), _parent(groupDto.parent) {}
 
 DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
 {
@@ -20,8 +20,6 @@ QUuid DatabaseGroup::uid() const { return _uid; }
 QUuid DatabaseGroup::parent() const { return _parent; }
 
 void DatabaseGroup::setParent(const QUuid& parent) { _parent = parent; }
-
-void DatabaseGroup::setParent(const DatabaseGroup& group) { _parent = group.uid(); }
 
 QString DatabaseGroup::title() const { return _title; }
 

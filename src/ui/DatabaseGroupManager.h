@@ -14,7 +14,7 @@ class DatabaseGroupManager : public QDialog
     Q_OBJECT
 
 public:
-    explicit DatabaseGroupManager(DatabaseGroup* group, const DatabaseGroup* existingGroup = nullptr, const DatabaseGroup* parentGroup = nullptr, QWidget* parent = nullptr);
+    explicit DatabaseGroupManager(DatabaseGroupDto* groupDto, const DatabaseGroup* group = nullptr, const DatabaseGroup* parentGroup = nullptr, QWidget* parent = nullptr);
     ~DatabaseGroupManager();
 
 private slots:
@@ -22,8 +22,8 @@ private slots:
 
 private:
     Ui::DatabaseGroupManager* ui;
-    DatabaseGroup* _group;
-    const DatabaseGroup* _existingGroup = nullptr;
+    DatabaseGroupDto* _groupDto;
+    const DatabaseGroup* _group = nullptr;
     const DatabaseGroup* _parentGroup = nullptr;
 };
 

@@ -5,16 +5,20 @@
 #include <QUuid>
 #include <QJsonObject>
 
+struct DatabaseGroupDto {
+    QUuid parent;
+    QString title;
+};
+
 class DatabaseGroup
 {
 public:
     DatabaseGroup();
-    DatabaseGroup(const QUuid& uid);
+    DatabaseGroup(const DatabaseGroupDto& groupDto);
     DatabaseGroup(const QJsonObject& jsonObj);
     QUuid uid() const;
     QUuid parent() const;
     void setParent(const QUuid& parent);
-    void setParent(const DatabaseGroup& group);
     QString title() const;
     void setTitle(const QString& title);
     QJsonObject toJson() const;

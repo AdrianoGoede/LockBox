@@ -9,8 +9,8 @@
 Database::Database(const QString& filePath, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject(parent), _filePath(filePath)
 {
     setSettings(newDatabaseSettings);
-    DatabaseGroup rootGroup;
-    rootGroup.setTitle("Root");
+    DatabaseGroupDto rootGroup;
+    rootGroup.title = "Root";
     addGroup(rootGroup);
     save();
 }
@@ -110,13 +110,12 @@ void Database::addEntry(const DatabaseEntryDto& entryDto)
     emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
 }
 
-void Database::addGroup(const DatabaseGroup& group)
+void Database::addGroup(const DatabaseGroupDto& groupDto)
 {
-    if (_dbGroups.contains(group.uid()))
-        throw std::runtime_error("Group already exists");
-    if (group.title().trimmed().isEmpty())
+    if (groupDto.title.trimmed().isEmpty())
         throw std::runtime_error("Group must have a name");
 
+    DatabaseGroup group(groupDto);
     _dbGroupKeys.append(group.uid());
     _dbGroups[group.uid()] = group;
     emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
@@ -138,12 +137,15 @@ void Database::editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
 
-void Database::editGroup(const DatabaseGroup& group)
+void Database::editGroup(const QUuid& groupUid, const DatabaseGroupDto& groupDto)
 {
-    if (!_dbGroups.contains(group.uid()))
+    if (!_dbGroups.contains(groupUid))
         throw std::runtime_error("Group does not exist!");
-    _dbGroups[group.uid()] = group;
-    emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
+
+    DatabaseGroup& group = _dbGroups[groupUid];
+    group.setTitle(groupDto.title);
+
+    emit groupEdited(_dbGroupKeys.indexOf(groupUid), groupUid);
 }
 
 void Database::moveEntry(const QUuid& entry, const QUuid& group)

@@ -2,15 +2,15 @@
 #include "ui_DatabaseGroupManager.h"
 #include <QMessageBox>
 
-DatabaseGroupManager::DatabaseGroupManager(DatabaseGroup* group, const DatabaseGroup* existingGroup, const DatabaseGroup* parentGroup, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseGroupManager), _group(group), _existingGroup(existingGroup), _parentGroup(parentGroup)
+DatabaseGroupManager::DatabaseGroupManager(DatabaseGroupDto* groupDto, const DatabaseGroup* group, const DatabaseGroup* parentGroup, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseGroupManager), _groupDto(groupDto), _group(group), _parentGroup(parentGroup)
 {
-    if (!_group)
-        throw std::runtime_error("Group cannot be null");
+    if (!_groupDto)
+        throw std::runtime_error("Group DTO cannot be null");
 
     ui->setupUi(this);
-    this->setWindowTitle(_group->title().isEmpty() ? "New Group" : "Edit Group");
+    this->setWindowTitle(_group ? "Edit Group" : "New Group");
     ui->leGroupParent->setText(_parentGroup ? _parentGroup->title() : "Root");
-    ui->leGroupName->setText(_existingGroup ? _existingGroup->title() : QString());
+    ui->leGroupName->setText(_group ? _group->title() : QString());
 }
 
 DatabaseGroupManager::~DatabaseGroupManager() { delete ui; }
@@ -28,7 +28,7 @@ void DatabaseGroupManager::accept()
         return;
     }
 
-    _group->setParent(_parentGroup ? _parentGroup->uid() : QUuid());
-    _group->setTitle(ui->leGroupName->text().trimmed());
+    _groupDto->parent = (_parentGroup ? _parentGroup->uid() : QUuid(0));
+    _groupDto->title = ui->leGroupName->text().trimmed();
     QDialog::accept();
 }

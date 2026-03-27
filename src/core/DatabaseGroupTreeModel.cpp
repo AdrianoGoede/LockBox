@@ -74,11 +74,12 @@ QVariant DatabaseGroupTreeModel::data(const QModelIndex& index, int role) const
         return QVariant();
 
     const DatabaseGroup* group = static_cast<const DatabaseGroup*>(index.internalPointer());
+    if (!group) return QVariant();
 
     switch (role) {
         case Qt::ItemDataRole::DisplayRole: case Qt::ItemDataRole::EditRole: return group->title();
         case Qt::ItemDataRole::DecorationRole: return QIcon::fromTheme("folder");
-        case (Qt::ItemDataRole::UserRole + 1): return QVariant::fromValue(group);
+        case (Qt::ItemDataRole::UserRole + 1): return QVariant::fromValue(group->uid());
         default: return QVariant();
     }
 }
