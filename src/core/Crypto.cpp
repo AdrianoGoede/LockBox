@@ -4,7 +4,7 @@
 #include <QString>
 #include <QStringConverter>
 
-QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce)
+QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData)
 {
     QByteArray ciphertext;
     ciphertext.resize(plaintext.size() + crypto_aead_aes256gcm_ABYTES);
@@ -15,8 +15,8 @@ QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const Secur
         &ciphertextLength,
         reinterpret_cast<const u_char*>(plaintext.data()),
         plaintext.size(),
-        nullptr,
-        0,
+        reinterpret_cast<const u_char*>(associatedData.constData()),
+        associatedData.size(),
         nullptr,
         reinterpret_cast<const u_char*>(nonce.constData()),
         reinterpret_cast<const u_char*>(key.data())
@@ -29,7 +29,7 @@ QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const Secur
     return ciphertext;
 }
 
-SecureBuffer<std::byte> Crypto::decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce)
+SecureBuffer<std::byte> Crypto::decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData)
 {
     if (ciphertext.size() < crypto_aead_aes256gcm_ABYTES)
         throw std::runtime_error("Ciphertext invalid");
@@ -43,8 +43,8 @@ SecureBuffer<std::byte> Crypto::decrypt(const QByteArray& ciphertext, const Secu
         nullptr,
         reinterpret_cast<const u_char*>(ciphertext.constData()),
         ciphertext.size(),
-        nullptr,
-        0,
+        reinterpret_cast<const u_char*>(associatedData.constData()),
+        associatedData.size(),
         reinterpret_cast<const u_char*>(nonce.constData()),
         reinterpret_cast<const u_char*>(key.data())
     );

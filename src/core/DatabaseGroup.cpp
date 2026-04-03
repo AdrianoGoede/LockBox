@@ -1,19 +1,10 @@
 #include "DatabaseGroup.h"
-#include <QJsonArray>
 
 DatabaseGroup::DatabaseGroup() : _uid(QUuid::createUuid()) {}
 
 DatabaseGroup::DatabaseGroup(const DatabaseGroupDto& groupDto) : _uid(QUuid::createUuid()), _title(groupDto.title), _parent(groupDto.parent) {}
 
-DatabaseGroup::DatabaseGroup(const QJsonObject& jsonObj)
-{
-    _uid = QUuid::fromString(jsonObj["uuid"].toString());
-    _parent = QUuid::fromString(jsonObj["parent"].toString());
-    _title = jsonObj["title"].toString();
-
-    if (_uid.isNull() || _title.isEmpty())
-        throw std::runtime_error("Invalid or corrupted data");
-}
+DatabaseGroup::DatabaseGroup(QDataStream& in) { in >> _uid >> _parent >> _title; }
 
 QUuid DatabaseGroup::uid() const { return _uid; }
 
@@ -25,11 +16,4 @@ QString DatabaseGroup::title() const { return _title; }
 
 void DatabaseGroup::setTitle(const QString& title) { _title = title; }
 
-QJsonObject DatabaseGroup::toJson() const
-{
-    QJsonObject obj;
-    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
-    obj["parent"] = _parent.toString(QUuid::StringFormat::WithoutBraces);
-    obj["title"] = _title;
-    return obj;
-}
+void DatabaseGroup::toBinary(QDataStream& out) const { out << _uid << _parent << _title; }

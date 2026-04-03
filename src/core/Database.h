@@ -7,14 +7,13 @@
 #include <QFile>
 #include <QString>
 #include <QObject>
-#include <QJsonObject>
 #include "SecureBuffer.h"
 #include "DatabaseGroup.h"
 #include "DatabaseEntry.h"
 
 struct DatabaseSettings {
     quint64 kdfMemory;
-    quint32 kdfIterations, kdfParallelism, compressionLevel;
+    quint32 kdfIterations, kdfParallelism;
     bool saveOnModification, saveOnLocking;
     int clearClipboardAfter, lockAfter;
     SecureBuffer<QChar> password;
@@ -71,17 +70,16 @@ private:
     QString _filePath;
     SecureBuffer<std::byte> _masterKey;
     quint64 _kdfMemory;
-    quint32 _kdfIterations, _kdfParallelism, _compressionLevel;
+    quint32 _kdfIterations, _kdfParallelism;
     QByteArray _kdfSalt, _cryptoNonce;
     bool _saveOnModification, _saveOnLocking;
     int _clearClipboardAfter, _lockAfter;
     QHash<QUuid, DatabaseGroup> _dbGroups;
     QHash<QUuid, DatabaseEntry> _dbEntries;
     QList<QUuid> _dbGroupKeys, _dbEntryKeys;
-    void loadHeader(const QJsonObject& header, const SecureBuffer<QChar>& password);
-    void loadBody(const QByteArray& body);
-    void loadSettings(const QJsonObject& settings);
-    void loadData(const QJsonObject& data);
+    void loadData(const SecureBuffer<std::byte>& data);
+    qsizetype calculateBodySize() const;
+    QByteArray encryptedBody(const QByteArray& associatedData);
 };
 
 #endif // DATABASE_H

@@ -1,7 +1,6 @@
 #include "DatabaseEntry.h"
 #include "../config/Constants.h"
 #include "Crypto.h"
-#include <QJsonArray>
 
 DatabaseEntry::DatabaseEntry() : _uid(QUuid::createUuid()), _createdAt(QDateTime::currentDateTimeUtc()), _modifiedAt(_createdAt) {}
 
@@ -17,26 +16,24 @@ DatabaseEntry::DatabaseEntry(const DatabaseEntryDto& entryDto, const SecureBuffe
     setPassword(entryDto.password, masterKey);
 }
 
-DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
+DatabaseEntry::DatabaseEntry(QDataStream& in)
 {
-    _uid = QUuid::fromString(obj["uuid"].toString());
-    _group = QUuid::fromString(obj["group"].toString());
-    _title = obj["title"].toString();
-    _username = obj["username"].toString();
-    _notes = obj["notes"].toString();
-    if (_uid.isNull() || _group.isNull() || _title.isEmpty())
-        throw std::runtime_error("Invalid or corrupted data");
-    _createdAt = QDateTime::fromSecsSinceEpoch(obj["created"].toInteger());
-    _modifiedAt = QDateTime::fromSecsSinceEpoch(obj["modified"].toInteger());
+    in >> _uid
+       >> _group
+       >> _title
+       >> _username
+       >> _notes
+       >> _createdAt
+       >> _modifiedAt
+       >> _keyNonce
+       >> _key
+       >> _passwordNonce
+       >> _password;
 
-    _keyNonce = QByteArray::fromBase64(obj["keyNonce"].toString().toUtf8());
-    _key = QByteArray::fromBase64(obj["key"].toString().toUtf8());
-    _passwordNonce = QByteArray::fromBase64(obj["passwordNonce"].toString().toUtf8());
-    _password = QByteArray::fromBase64(obj["password"].toString().toUtf8());
-
-    QJsonArray history = obj["history"].toArray(QJsonArray());
-    for (const QJsonValueRef item : history)
-        _history.append(DatabaseEntryHistoryItem(item.toObject()));
+    quint32 size;
+    in >> size;
+    for (quint32 i = 0; i < size; i++)
+        _history.append(DatabaseEntryHistoryItem(in));
 }
 
 QUuid DatabaseEntry::uid() const { return _uid; }
@@ -132,26 +129,21 @@ const DatabaseEntryHistoryItem& DatabaseEntry::getHistoryItem(const QUuid& itemU
     throw std::runtime_error("History item does not exist");
 }
 
-QJsonObject DatabaseEntry::toJson() const
+void DatabaseEntry::toBinary(QDataStream& out) const
 {
-    QJsonObject obj;
-    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
-    obj["group"] = _group.toString(QUuid::StringFormat::WithoutBraces);
-    obj["title"] = _title;
-    obj["username"] = _username;
-    obj["notes"] = _notes;
-    obj["created"] = _createdAt.toSecsSinceEpoch();
-    obj["modified"] = _modifiedAt.toSecsSinceEpoch();
+    out << _uid
+        << _group
+        << _title
+        << _username
+        << _notes
+        << _createdAt
+        << _modifiedAt
+        << _keyNonce
+        << _key
+        << _passwordNonce
+        << _password;
 
-    obj["keyNonce"] = QString(_keyNonce.toBase64());
-    obj["key"] = QString(_key.toBase64());
-    obj["passwordNonce"] = QString(_passwordNonce.toBase64());
-    obj["password"] = QString(_password.toBase64());
-
-    QJsonArray history;
+    out << static_cast<quint32>(_history.size());
     for (const DatabaseEntryHistoryItem& item : _history)
-        history.append(item.toJson());
-    obj["history"] = history;
-
-    return obj;
+        item.toBinary(out);
 }

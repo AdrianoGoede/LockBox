@@ -3,18 +3,19 @@
 
 #include "SecureBuffer.h"
 #include <QUuid>
-#include <QJsonObject>
+#include <QDateTime>
+#include <QDataStream>
 
 class DatabaseEntryHistoryItem
 {
 public:
-    explicit DatabaseEntryHistoryItem(const QJsonObject& obj);
+    explicit DatabaseEntryHistoryItem(QDataStream& in);
     explicit DatabaseEntryHistoryItem(const QString& username, const QByteArray& keyNonce, const QByteArray& key, const QByteArray& passwordNonce, const QByteArray& password);
     QUuid itemUid() const;
     QDateTime createdAt() const;
     QString username() const;
     SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
-    QJsonObject toJson() const;
+    void toBinary(QDataStream& out) const;
 
 private:
     QUuid _itemUid;

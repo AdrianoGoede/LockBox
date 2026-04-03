@@ -4,7 +4,7 @@
 #include <QUuid>
 #include <QString>
 #include <QDateTime>
-#include <QJsonObject>
+#include <QDataStream>
 #include "SecureBuffer.h"
 #include "DatabaseGroup.h"
 #include "DatabaseEntryHistoryItem.h"
@@ -20,7 +20,7 @@ class DatabaseEntry
 public:
     DatabaseEntry();
     DatabaseEntry(const DatabaseEntryDto& entryDto, const SecureBuffer<std::byte>& masterKey);
-    DatabaseEntry(const QJsonObject& obj);
+    DatabaseEntry(QDataStream& in);
     QUuid uid() const;
     void setUid(const QUuid& uid);
     QUuid group() const;
@@ -39,7 +39,7 @@ public:
     void recordHistory();
     const QVector<DatabaseEntryHistoryItem>& history() const;
     const DatabaseEntryHistoryItem& getHistoryItem(const QUuid& itemUid) const;
-    QJsonObject toJson() const;
+    void toBinary(QDataStream& out) const;
 
 private:
     QUuid _uid;

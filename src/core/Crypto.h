@@ -6,8 +6,8 @@
 #include <chrono>
 
 namespace Crypto {
-    QByteArray encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce);
-    SecureBuffer<std::byte> decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce);
+    QByteArray encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
+    SecureBuffer<std::byte> decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
     SecureBuffer<std::byte> deriveKey(const SecureBuffer<std::byte>& password, const QByteArray& salt, quint64 memoryKib, quint32 iterations, quint32 parallelism);
     void tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism);
     SecureBuffer<std::byte> generateKey();

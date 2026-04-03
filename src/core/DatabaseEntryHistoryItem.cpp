@@ -1,17 +1,7 @@
 #include "DatabaseEntryHistoryItem.h"
 #include "Crypto.h"
 
-DatabaseEntryHistoryItem::DatabaseEntryHistoryItem(const QJsonObject& obj)
-{
-    _itemUid = QUuid::fromString(obj["itemUid"].toString());
-    _username = obj["username"].toString();
-    _createdAt = QDateTime::fromSecsSinceEpoch(obj["createdAt"].toInteger());
-
-    _keyNonce = QByteArray::fromBase64(obj["keyNonce"].toString().toUtf8());
-    _key = QByteArray::fromBase64(obj["key"].toString().toUtf8());
-    _passwordNonce = QByteArray::fromBase64(obj["passwordNonce"].toString().toUtf8());
-    _password = QByteArray::fromBase64(obj["password"].toString().toUtf8());
-}
+DatabaseEntryHistoryItem::DatabaseEntryHistoryItem(QDataStream& in) { in >> _itemUid >> _username >> _keyNonce >> _key >> _passwordNonce >> _password >> _createdAt; }
 
 DatabaseEntryHistoryItem::DatabaseEntryHistoryItem(const QString& username, const QByteArray& keyNonce, const QByteArray& key, const QByteArray& passwordNonce, const QByteArray& password)
     : _itemUid(QUuid::createUuid())
@@ -36,15 +26,4 @@ SecureBuffer<QChar> DatabaseEntryHistoryItem::password(const SecureBuffer<std::b
     return Crypto::byteToQChar(password);
 }
 
-QJsonObject DatabaseEntryHistoryItem::toJson() const
-{
-    QJsonObject obj;
-    obj["itemUid"] = _itemUid.toString(QUuid::StringFormat::WithoutBraces);
-    obj["username"] = _username;
-    obj["keyNonce"] = QString(_keyNonce.toBase64());
-    obj["key"] = QString(_key.toBase64());
-    obj["passwordNonce"] = QString(_passwordNonce.toBase64());
-    obj["password"] = QString(_password.toBase64());
-    obj["createdAt"] = _createdAt.toSecsSinceEpoch();
-    return obj;
-}
+void DatabaseEntryHistoryItem::toBinary(QDataStream& out) const { out << _itemUid << _username << _keyNonce << _key << _passwordNonce << _password << _createdAt; }
