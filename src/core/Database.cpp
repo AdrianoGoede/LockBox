@@ -1,97 +1,61 @@
 #include "Database.h"
 #include "Crypto.h"
+#include "MemoryWriter.h"
+#include "SizeOnlyDevice.h"
 #include "../config/Constants.h"
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QJsonArray>
+#include <QDataStream>
 #include <QSaveFile>
+#include <QBuffer>
 
-Database::Database(const NewDbConfig& newDbConfig, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject{parent}, _filePath{newDbConfig.dbFilePath}
+Database::Database(const QString& filePath, const DatabaseSettings& newDatabaseSettings, QObject* parent) : QObject(parent), _filePath(filePath)
 {
     setSettings(newDatabaseSettings);
-    DatabaseGroup rootGroup;
-    rootGroup.setTitle("Root");
+    DatabaseGroupDto rootGroup;
+    rootGroup.title = "Root";
     addGroup(rootGroup);
     save();
 }
 
-Database::Database(const QString& filePath, const SecureQByteArray& password, QObject* parent) : QObject{parent}, _filePath{filePath}
+Database::Database(const QString& filePath, const SecureBuffer<QChar>& password, QObject* parent) : QObject(parent), _filePath(filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::OpenModeFlag::ReadOnly))
         throw std::runtime_error(QString("Could not open database file: %1").arg(file.errorString()).toUtf8());
-
     QByteArray payload = file.readAll();
     file.close();
 
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(payload, &parseError);
-    if (parseError.error != QJsonParseError::ParseError::NoError)
-        throw std::runtime_error(parseError.errorString().toStdString());
+    QDataStream stream(&payload, QIODevice::OpenModeFlag::ReadOnly);
+    stream.setVersion(QDataStream::Version::Qt_6_0);
 
-    loadHeader(doc.object()["header"].toObject(), password);
-    loadBody(QByteArray::fromBase64(doc.object()["body"].toString().toUtf8()));
+    QByteArray encryptedBody;
+    stream >> _kdfMemory >> _kdfIterations >> _kdfParallelism >> _kdfSalt >> _cryptoNonce >> encryptedBody;
+    _masterKey = Crypto::deriveKey(Crypto::qCharToByte(password), _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
+
+    QByteArray associatedData;
+    QDataStream associatedDataStream(&associatedData, QIODevice::OpenModeFlag::WriteOnly);
+    associatedDataStream.setVersion(QDataStream::Version::Qt_6_0);
+    associatedDataStream << _kdfMemory << _kdfIterations << _kdfParallelism << _kdfSalt << _cryptoNonce;
+
+    loadData(Crypto::decrypt(encryptedBody, _masterKey, _cryptoNonce, associatedData));
 }
 
 void Database::save()
 {
-    QJsonArray dataGroups;
-    for (const DatabaseGroup& group : _dbGroups)
-        dataGroups.append(group.toJson());
-    QJsonArray dataEntries;
-    for (const DatabaseEntry& entry : _dbEntries)
-        dataEntries.append(entry.toJson());
-    QJsonArray dataEntryHistory;
-    for (const QList<DatabaseEntryHistoryItem>& itemList : _entryHistory)
-        for (const DatabaseEntryHistoryItem& item : itemList)
-            dataEntryHistory.append(item.toJson());
+    _cryptoNonce = Crypto::generateNonce();
 
-    QJsonObject bodyObj {
-        { "settings", QJsonObject {
-            { "compressionLevel", QJsonValue::fromVariant(_compressionLevel) },
-            { "saveOnModification", QJsonValue::fromVariant(_saveOnModification) },
-            { "saveOnLocking", QJsonValue::fromVariant(_saveOnLocking) },
-            { "clearClipboardAfter", QJsonValue::fromVariant(_clearClipboardAfter) },
-            { "lockAfter", QJsonValue::fromVariant(_lockAfter) }
-        }},
-        { "data", QJsonObject {
-            { "groups", QJsonValue::fromVariant(dataGroups) },
-            { "entries", QJsonValue::fromVariant(dataEntries) },
-            { "entryHistory", QJsonValue::fromVariant(dataEntryHistory) }
-        }}
-    };
+    QByteArray associatedData;
+    QDataStream stream(&associatedData, QIODevice::OpenModeFlag::WriteOnly);
+    stream.setVersion(QDataStream::Version::Qt_6_0);
+    stream << _kdfMemory << _kdfIterations << _kdfParallelism << _kdfSalt << _cryptoNonce;
 
-    QByteArray encryptedData;
-    Crypto::encrypt(
-        SecureQByteArray(
-            qCompress(QJsonDocument(bodyObj).toJson(QJsonDocument::JsonFormat::Compact),
-            _compressionLevel)
-        ),
-        _masterKey,
-        encryptedData,
-        _cryptoNonce
-    );
-
-    QJsonObject jsonObj;
-    jsonObj["header"] = QJsonObject{
-        { "kdf", QJsonObject {
-            { "memory", QJsonValue::fromVariant(_kdfMemory) },
-            { "iterations", QJsonValue::fromVariant(_kdfIterations) },
-            { "parallelism", QJsonValue::fromVariant(_kdfParallelism) },
-            { "salt", QString(_kdfSalt.toBase64()) }
-        }},
-        { "crypto", QJsonObject {
-            { "nonce", QString(_cryptoNonce.toBase64()) }
-        }}
-    };
-    jsonObj["body"] = QString(encryptedData.toBase64());
-
-    QByteArray data = QJsonDocument(jsonObj).toJson(QJsonDocument::JsonFormat::Compact);
     QSaveFile file(_filePath);
     if (!file.open(QIODevice::OpenModeFlag::WriteOnly))
         throw std::runtime_error(QString("Could not open database file for saving: %1").arg(file.errorString()).toStdString());
-    if (file.write(data) != data.size())
-        throw std::runtime_error(QString("Could not write to databse file: %1").arg(file.errorString()).toStdString());
+
+    stream.resetStatus();
+    stream.setDevice(&file);
+    stream << _kdfMemory << _kdfIterations << _kdfParallelism << _kdfSalt << _cryptoNonce << encryptedBody(associatedData);
+
     if (!file.commit())
         throw std::runtime_error(QString("Could not save databse file: %1").arg(file.errorString()).toStdString());
 }
@@ -110,48 +74,50 @@ void Database::saveAs(const QString& path)
     }
 }
 
-void Database::addEntry(const DatabaseEntry& entry)
+void Database::addEntry(const DatabaseEntryDto& entryDto)
 {
-    if (_dbEntries.contains(entry.uid()))
-        throw std::runtime_error("Entry already exists");
-    if (entry.title().trimmed().isEmpty())
-        throw std::runtime_error("Entry must have a title");
-    if (entry.group().isNull())
-        throw std::runtime_error("Entry must have a valid parent");
-
+    DatabaseEntry entry(entryDto, _masterKey);
     _dbEntryKeys.append(entry.uid());
     _dbEntries[entry.uid()] = entry;
-
     emit entryAdded((_dbEntryKeys.size() - 1), entry.uid());
 }
 
-void Database::addGroup(const DatabaseGroup& group)
+void Database::addGroup(const DatabaseGroupDto& groupDto)
 {
-    if (_dbGroups.contains(group.uid()))
-        throw std::runtime_error("Group already exists");
-    if (group.title().trimmed().isEmpty())
+    if (groupDto.title.trimmed().isEmpty())
         throw std::runtime_error("Group must have a name");
 
+    DatabaseGroup group(groupDto);
     _dbGroupKeys.append(group.uid());
     _dbGroups[group.uid()] = group;
     emit groupAdded((_dbGroupKeys.size() - 1), group.uid());
 }
 
-void Database::editEntry(const DatabaseEntry& entry)
+void Database::editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto)
 {
-    if (!_dbEntries.contains(entry.uid()))
+    if (!_dbEntries.contains(entryUid))
         throw std::runtime_error("Entry does not exist");
-    recordHistory(entry.uid());
-    _dbEntries[entry.uid()] = entry;
+
+    DatabaseEntry& entry = _dbEntries[entryUid];
+    entry.recordHistory();
+
+    entry.setTitle(entryDto.title);
+    entry.setUsername(entryDto.username);
+    entry.setNotes(entryDto.notes);
+    entry.setPassword(entryDto.password, _masterKey);
+
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
 }
 
-void Database::editGroup(const DatabaseGroup& group)
+void Database::editGroup(const QUuid& groupUid, const DatabaseGroupDto& groupDto)
 {
-    if (!_dbGroups.contains(group.uid()))
+    if (!_dbGroups.contains(groupUid))
         throw std::runtime_error("Group does not exist!");
-    _dbGroups[group.uid()] = group;
-    emit groupEdited(_dbGroupKeys.indexOf(group.uid()), group.uid());
+
+    DatabaseGroup& group = _dbGroups[groupUid];
+    group.setTitle(groupDto.title);
+
+    emit groupEdited(_dbGroupKeys.indexOf(groupUid), groupUid);
 }
 
 void Database::moveEntry(const QUuid& entry, const QUuid& group)
@@ -170,7 +136,6 @@ void Database::removeEntry(const QUuid& uid)
     if (row < 0) return;
     _dbEntryKeys.removeAt(row);
     _dbEntries.remove(uid);
-    _entryHistory.remove(uid);
     emit entryRemoved(row, uid);
 }
 
@@ -203,37 +168,52 @@ size_t Database::entryCount() const { return _dbEntries.size(); }
 
 size_t Database::groupCount() const { return _dbGroups.size(); }
 
-const DatabaseEntry& Database::entry(const QUuid& uid) const
+SecureBuffer<QChar> Database::entryPassword(const QUuid& entryUid) const
+{
+    if (!_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
+    return entry.password(_masterKey);
+}
+
+SecureBuffer<QChar> Database::entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const
+{
+    if (!_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
+    const DatabaseEntryHistoryItem& item = entry.getHistoryItem(historyItemUid);
+    return item.password(_masterKey);
+}
+
+const DatabaseEntry* Database::entry(const QUuid& uid) const
 {
     if (!_dbEntries.contains(uid))
-        throw std::runtime_error("Entry not found");
-    return _dbEntries.find(uid).value();
+        return nullptr;
+    return &_dbEntries.find(uid).value();
 }
 
-const DatabaseEntry& Database::entry(int index) const
+const DatabaseEntry* Database::entry(int index) const
 {
     if (index >= _dbEntryKeys.size())
-        throw std::runtime_error("Index out of range");
+        return nullptr;
     const QUuid& uid = _dbEntryKeys[index];
-    return _dbEntries.find(uid).value();
+    return &_dbEntries.find(uid).value();
 }
 
-const DatabaseGroup& Database::group(const QUuid &uid) const
+const DatabaseGroup* Database::group(const QUuid &uid) const
 {
     if (!_dbGroups.contains(uid))
-        throw std::runtime_error("Group not found");
-    return _dbGroups.find(uid).value();
+        return nullptr;
+    return &_dbGroups.find(uid).value();
 }
 
-const DatabaseGroup& Database::group(int index) const
+const DatabaseGroup* Database::group(int index) const
 {
     if (index >= _dbGroupKeys.size())
-        throw std::runtime_error("Index out of range");
+        return nullptr;
     const QUuid& uid = _dbGroupKeys[index];
-    return _dbGroups.find(uid).value();
+    return &_dbGroups.find(uid).value();
 }
-
-QList<DatabaseEntryHistoryItem> Database::entryHistory(const QUuid& entryUid) const { return _entryHistory.value(entryUid, QList<DatabaseEntryHistoryItem>()); }
 
 QVector<const DatabaseGroup*> Database::childrenOfGroup(const DatabaseGroup* group) const
 {
@@ -265,12 +245,11 @@ DatabaseSettings Database::settings() const
         _kdfMemory,
         _kdfIterations,
         _kdfParallelism,
-        _compressionLevel,
         _saveOnModification,
         _saveOnLocking,
         _clearClipboardAfter,
         _lockAfter,
-        SecureQByteArray()
+        SecureBuffer<QChar>()
     };
 }
 
@@ -282,8 +261,6 @@ void Database::setSettings(const DatabaseSettings& settings)
         throw std::runtime_error(QString("KDF iterations must be between %1 and %2").arg(Config::constants::MIN_KDF_ITERATIONS).arg(Config::constants::MAX_KDF_ITERATIONS).toStdString());
     if (settings.kdfParallelism < Config::constants::MIN_KDF_PARALLELISM || settings.kdfParallelism > Config::constants::MAX_KDF_PARALLELISM)
         throw std::runtime_error(QString("KDF paralellism must be between %1 and %2").arg(Config::constants::MIN_KDF_PARALLELISM).arg(Config::constants::MAX_KDF_PARALLELISM).toStdString());
-    if (settings.compressionLevel < Config::constants::MIN_COMPRESSION_LEVEL || settings.compressionLevel > Config::constants::MAX_COMPRESSION_LEVEL)
-        throw std::runtime_error(QString("Compression level must be between %1 and %2").arg(Config::constants::MIN_COMPRESSION_LEVEL).arg(Config::constants::MAX_COMPRESSION_LEVEL).toStdString());
     if (settings.clearClipboardAfter != 0 && (settings.clearClipboardAfter < Config::constants::MIN_CLIPBOARD_TIME || settings.clearClipboardAfter > Config::constants::MAX_CLIPBOARD_TIME))
         throw std::runtime_error(QString("Clipboard clearing time must be between %1 and %2").arg(Config::constants::MIN_CLIPBOARD_TIME).arg(Config::constants::MAX_CLIPBOARD_TIME).toStdString());
     if (settings.lockAfter != 0 && (settings.lockAfter < Config::constants::MIN_CLIPBOARD_TIME || settings.lockAfter > Config::constants::MAX_CLIPBOARD_TIME))
@@ -294,93 +271,89 @@ void Database::setSettings(const DatabaseSettings& settings)
     _kdfMemory = settings.kdfMemory;
     _kdfIterations = settings.kdfIterations;
     _kdfParallelism = settings.kdfParallelism;
-    _compressionLevel = settings.compressionLevel;
     _saveOnModification = settings.saveOnModification;
     _saveOnLocking = settings.saveOnLocking;
     _clearClipboardAfter = settings.clearClipboardAfter;
     _lockAfter = settings.lockAfter;
 
     if (!settings.password.isEmpty()) {
-        Crypto::generateSalt(_kdfSalt);
-        Crypto::deriveKey(settings.password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
+        _kdfSalt = Crypto::generateSalt();
+        _masterKey = Crypto::deriveKey(Crypto::qCharToByte(settings.password), _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
     }
 }
 
 void Database::handleDatabaseStateChange() { if (_saveOnModification) save(); }
 
-void Database::loadHeader(const QJsonObject& header, const SecureQByteArray& password)
+void Database::loadData(const SecureBuffer<std::byte>& data)
 {
-    QJsonObject obj = header["kdf"].toObject();
-    if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
-    _kdfMemory = obj["memory"].toInt(Config::constants::DEFAULT_KDF_MEMORY);
-    _kdfIterations = obj["iterations"].toInt(Config::constants::DEFAULT_KDF_ITERATIONS);
-    _kdfParallelism = obj["parallelism"].toInt(Config::constants::DEFAULT_KDF_PARALLELISM);
-    _kdfSalt = QByteArray::fromBase64(obj["salt"].toString().toUtf8());
+    QBuffer buffer;
+    buffer.setData(reinterpret_cast<const char*>(data.data()), data.size());
+    if (!buffer.open(QIODevice::OpenModeFlag::ReadOnly))
+        throw std::runtime_error("Buffer could not be opened for reading");
+    QDataStream stream(&buffer);
+    stream.setVersion(QDataStream::Version::Qt_6_0);
 
-    obj = header["crypto"].toObject();
-    if (obj.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
-    _cryptoNonce = QByteArray::fromBase64(obj["nonce"].toString().toUtf8());
-    if (_cryptoNonce.isEmpty()) throw std::runtime_error("Invalid or corrupted database file");
+    stream >> _saveOnModification >> _saveOnLocking >> _clearClipboardAfter >> _lockAfter;
+    qsizetype size;
 
-    Crypto::deriveKey(password, _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism, _masterKey);
-}
-
-void Database::loadBody(const QByteArray& body)
-{
-    SecureQByteArray plaintext;
-    Crypto::decrypt(body, _masterKey, _cryptoNonce, plaintext);
-
-    QJsonParseError parseError;
-    QJsonDocument doc = QJsonDocument::fromJson(qUncompress(plaintext), &parseError);
-    if (parseError.error != QJsonParseError::ParseError::NoError)
-        throw std::runtime_error("Invalid or corrupted database file");
-
-    QJsonObject obj = doc.object()["settings"].toObject();
-    loadSettings(obj);
-
-    obj = doc.object()["data"].toObject();
-    loadData(obj);
-}
-
-void Database::loadSettings(const QJsonObject& settings)
-{
-    _compressionLevel = settings["compressionLevel"].toInt(Config::constants::DEFAULT_COMPRESSION_LEVEL);
-    _saveOnModification = settings["saveOnModification"].toBool(Config::constants::DEFAULT_SAVE_ON_MODIFICATION);
-    _saveOnLocking = settings["saveOnLocking"].toBool(Config::constants::DEFAULT_SAVE_ON_LOCKING);
-    _clearClipboardAfter = settings["clearClipboardAfter"].toInt(Config::constants::DEFAULT_CLIPBOARD_TIME);
-    _lockAfter = settings["lockAfter"].toInt(Config::constants::DEFAULT_LOCK_AFTER);
-}
-
-void Database::loadData(const QJsonObject& data)
-{
-    QJsonArray array = data["groups"].toArray();
-    for (const QJsonValueRef& groupRef : array) {
-        DatabaseGroup group(groupRef.toObject());
+    stream >> size;
+    for (qsizetype i = 0; i < size; i++) {
+        DatabaseGroup group(stream);
         _dbGroupKeys.append(group.uid());
         _dbGroups[group.uid()] = std::move(group);
     }
 
-    array = data["entries"].toArray();
-    for (const QJsonValueRef& entryRef : array) {
-        DatabaseEntry entry(entryRef.toObject());
+    stream >> size;
+    for (qsizetype i = 0; i < size; i++) {
+        DatabaseEntry entry(stream);
         _dbEntryKeys.append(entry.uid());
         _dbEntries[entry.uid()] = std::move(entry);
     }
-
-    array = data["entryHistory"].toArray();
-    for (const QJsonValueRef& entryRef : array) {
-        DatabaseEntryHistoryItem item(entryRef.toObject());
-        if (!_entryHistory.contains(item.entryUid()))
-            _entryHistory[item.entryUid()] = QList<DatabaseEntryHistoryItem>();
-        _entryHistory[item.entryUid()].append(DatabaseEntryHistoryItem(entryRef.toObject()));
-    }
 }
 
-void Database::recordHistory(const QUuid& entryUid)
+qsizetype Database::calculateBodySize() const
 {
-    if (!_entryHistory.contains(entryUid))
-        _entryHistory[entryUid] = QList<DatabaseEntryHistoryItem>();
-    _entryHistory[entryUid].append(DatabaseEntryHistoryItem(_dbEntries[entryUid]));
-    while (_entryHistory[entryUid].size() > Config::constants::MAX_DB_ENTRY_HISTORY_ITEMS)
-        _entryHistory[entryUid].removeFirst();
+    SizeOnlyDevice dummyBuffer;
+    QDataStream probe(&dummyBuffer);
+    probe.setVersion(QDataStream::Version::Qt_6_0);
+
+    probe << _saveOnModification << _saveOnLocking << _clearClipboardAfter << _lockAfter;
+
+    probe << _dbGroupKeys.size();
+    for (const QUuid& groupUid : _dbGroupKeys) {
+        const DatabaseGroup& group = _dbGroups[groupUid];
+        group.toBinary(probe);
+    }
+
+    probe << _dbEntryKeys.size();
+    for (const QUuid& entryUid : _dbEntryKeys) {
+        const DatabaseEntry& entry = _dbEntries[entryUid];
+        entry.toBinary(probe);
+    }
+
+    return dummyBuffer.size();
+}
+
+QByteArray Database::encryptedBody(const QByteArray& associatedData)
+{
+    SecureBuffer<std::byte> plaintextData(calculateBodySize());
+    MemoryWriter writer(plaintextData.data(), plaintextData.size());
+    QDataStream stream(&writer);
+    stream.setVersion(QDataStream::Version::Qt_6_0);
+
+    stream << _saveOnModification << _saveOnLocking << _clearClipboardAfter << _lockAfter;
+
+    stream << _dbGroupKeys.size();
+    for (const QUuid& groupUid : _dbGroupKeys) {
+        const DatabaseGroup& group = _dbGroups[groupUid];
+        group.toBinary(stream);
+    }
+
+    stream << _dbEntryKeys.size();
+    for (const QUuid& entryUid : _dbEntryKeys) {
+        const DatabaseEntry& entry = _dbEntries[entryUid];
+        entry.toBinary(stream);
+    }
+
+    return Crypto::encrypt(plaintextData, _masterKey, _cryptoNonce, associatedData);
 }

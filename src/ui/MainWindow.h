@@ -19,7 +19,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void copyTextToClipboard(const QByteArray& text) const;
+    void copyTextToClipboard(const QString& text) const;
 
 private slots:
     void newDatabase();
@@ -37,9 +37,9 @@ private slots:
     void filterEntryModifiedAfter(const QDateTime& filter);
     void filterEntryModifiedBefore(const QDateTime& filter);
     void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
-    void openEntryManager(const DatabaseEntry* existingEntry);
-    void copyEntryUsername(const DatabaseEntry* entry = nullptr);
-    void copyEntryPassword(const DatabaseEntry* entry = nullptr);
+    void openEntryManager(const QUuid& entryUid);
+    void copyEntryUsername(const QUuid& entryUid);
+    void copyEntryPassword(const QUuid& entryUid);
     void autotypeEntry();
     void newGroup();
     void editGroup();

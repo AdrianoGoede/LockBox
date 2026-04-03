@@ -3,11 +3,13 @@
 #include <QApplication>
 #include <QLocale>
 #include <QTranslator>
+#include <sodium.h>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+    if (sodium_init() < 0) throw std::runtime_error("libsodium initialization failed");
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();
     for (const QString &locale : uiLanguages) {

@@ -19,9 +19,6 @@ namespace Config::constants {
     inline constexpr int NONCE_BYTES                                = crypto_aead_aes256gcm_NPUBBYTES;
     inline constexpr int KEY_BYTES                                  = crypto_aead_aes256gcm_KEYBYTES;
 
-    inline constexpr int MIN_COMPRESSION_LEVEL                      = 0;
-    inline constexpr int MAX_COMPRESSION_LEVEL                      = 9;
-    inline constexpr int DEFAULT_COMPRESSION_LEVEL                  = 6;
     inline constexpr int MIN_UNLOCK_TIME                            = 1;
     inline constexpr int MAX_UNLOCK_TIME                            = 10;
     inline constexpr int DEFAULT_UNLOCK_TIME                        = 2;

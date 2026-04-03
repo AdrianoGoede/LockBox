@@ -1,20 +1,22 @@
 #ifndef CRYPTO_H
 #define CRYPTO_H
 
-#include "SecureQByteArray.h"
+#include "SecureBuffer.h"
 #include <QVector>
 #include <chrono>
 
 namespace Crypto {
-    void encrypt(const SecureQByteArray& plaintext, const SecureQByteArray& key, QByteArray& ciphertext, QByteArray& nonce);
-    void decrypt(const QByteArray& ciphertext, const SecureQByteArray& key, const QByteArray& nonce, SecureQByteArray& plaintext);
-    void deriveKey(const SecureQByteArray& password, const QByteArray& salt, quint64 memoryKiB, quint32 iterations, quint32 parallelism, SecureQByteArray& key);
+    QByteArray encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
+    SecureBuffer<std::byte> decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
+    SecureBuffer<std::byte> deriveKey(const SecureBuffer<std::byte>& password, const QByteArray& salt, quint64 memoryKib, quint32 iterations, quint32 parallelism);
     void tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism);
-    void generateKey(SecureQByteArray& key);
-    void generateRandomPassword(const QVector<char>& charset, qsizetype length, SecureQByteArray& out);
-    void generateNonce(QByteArray& nonce);
-    void generateSalt(QByteArray& salt);
-    QVector<quint32> generateRandomUnsignedIntegers(quint32 upperBound,qsizetype count);
+    SecureBuffer<std::byte> generateKey();
+    SecureBuffer<QChar> generateRandomPassword(const QVector<QChar>& charset, qsizetype length);
+    QByteArray generateNonce();
+    QByteArray generateSalt();
+    SecureBuffer<quint32> generateRandomUnsignedIntegers(quint32 upperBound,qsizetype count);
+    SecureBuffer<std::byte> qCharToByte(const SecureBuffer<QChar>& input);
+    SecureBuffer<QChar> byteToQChar(const SecureBuffer<std::byte>& input);
 }
 
 #endif // CRYPTO_H

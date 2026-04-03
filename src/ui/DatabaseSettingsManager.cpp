@@ -7,8 +7,6 @@
 DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, const DatabaseSettings* existingSettings, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseSettingsManager), _settings(settings), _existingSettings(existingSettings)
 {
     ui->setupUi(this);
-    ui->sbCompressionLevel->setMinimum(Config::constants::MIN_COMPRESSION_LEVEL);
-    ui->sbCompressionLevel->setMaximum(Config::constants::MAX_COMPRESSION_LEVEL);
     ui->sbClearClipboardAfter->setMinimum(Config::constants::MIN_CLIPBOARD_TIME);
     ui->sbClearClipboardAfter->setMaximum(Config::constants::MAX_CLIPBOARD_TIME);
     ui->sbLockAfterInactivity->setMinimum(Config::constants::MIN_LOCK_AFTER);
@@ -28,11 +26,8 @@ DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, con
     connect(ui->cbLockAfterInactivity, &QCheckBox::checkStateChanged, ui->sbLockAfterInactivity, &QSpinBox::setEnabled);
     connect(ui->pbChangePassword, &QAbstractButton::clicked, this, &DatabaseSettingsManager::changePassword);
     connect(ui->pbSetUnlockTime, &QAbstractButton::clicked, this, &DatabaseSettingsManager::setUnlockTime);
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     ui->cbAutosave->setChecked(_existingSettings ? _existingSettings->saveOnModification : Config::constants::DEFAULT_SAVE_ON_MODIFICATION);
-    ui->sbCompressionLevel->setValue(_existingSettings ? _existingSettings->compressionLevel : Config::constants::DEFAULT_COMPRESSION_LEVEL);
     ui->cbClearClipboardAfter->setChecked(_existingSettings ? (_existingSettings->clearClipboardAfter > 0) : (Config::constants::DEFAULT_CLIPBOARD_TIME > 0));
     ui->sbClearClipboardAfter->setValue(_existingSettings ? _existingSettings->clearClipboardAfter : Config::constants::DEFAULT_CLIPBOARD_TIME);
     ui->cbLockAfterInactivity->setChecked(_existingSettings ? (_existingSettings->lockAfter > 0) : (Config::constants::DEFAULT_LOCK_AFTER > 0));
@@ -47,18 +42,18 @@ DatabaseSettingsManager::~DatabaseSettingsManager() { delete ui; }
 void DatabaseSettingsManager::changePassword()
 {
     bool ok;
-    _settings.password.wipe();
-    _settings.password.append(QInputDialog::getText(
+    QString newPassword = QInputDialog::getText(
         this,
         "Enter the new password",
         QString(),
         QLineEdit::EchoMode::Password,
         QString(),
         &ok
-    ).toUtf8());
+    );
+    if (!ok) return;
 
-    if (!ok)
-        _settings.password.wipe();
+    _settings.password = SecureBuffer<QChar>(newPassword.size());
+    std::memcpy(_settings.password.data(), newPassword.constData(), _settings.password.byteSize());
     setKdfSettingsEnabled(ok);
 }
 
@@ -81,7 +76,6 @@ void DatabaseSettingsManager::accept()
     _settings.kdfMemory = (ui->sbKdfMemory->value() * 1024);
     _settings.kdfIterations = ui->sbKdfIterations->value();
     _settings.kdfParallelism = ui->sbKdfParallelism->value();
-    _settings.compressionLevel = ui->sbCompressionLevel->value();
     _settings.saveOnModification = ui->cbAutosave->isChecked();
     _settings.clearClipboardAfter = (ui->cbClearClipboardAfter->isChecked() ? ui->sbClearClipboardAfter->value() : 0);
     _settings.lockAfter = (ui->cbLockAfterInactivity->isChecked() ? ui->sbLockAfterInactivity->value() : 0);
@@ -90,7 +84,7 @@ void DatabaseSettingsManager::accept()
 
 void DatabaseSettingsManager::reject()
 {
-    _settings.password.wipe();
+    _settings.password = SecureBuffer<QChar>();
     QDialog::reject();
 }
 

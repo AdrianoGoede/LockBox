@@ -44,16 +44,18 @@ QModelIndex DatabaseGroupTreeModel::parent(const QModelIndex& index) const
     if (parentUuid.isNull())
         return {};
 
-    const DatabaseGroup& parentGroup = _database->group(parentUuid);
-    QUuid grandParentUuid = parentGroup.parent();
-    const DatabaseGroup* grandParentGroup = (!grandParentUuid.isNull() ? &_database->group(grandParentUuid) : nullptr);
+    const DatabaseGroup* parentGroup = _database->group(parentUuid);
+    if (!parentGroup) return {};
+
+    QUuid grandParentUuid = parentGroup->parent();
+    const DatabaseGroup* grandParentGroup = (!grandParentUuid.isNull() ? _database->group(grandParentUuid) : nullptr);
     QVector<const DatabaseGroup*> siblings = _database->childrenOfGroup(grandParentGroup);
-    int row = siblings.indexOf(&parentGroup);
+    int row = siblings.indexOf(parentGroup);
 
     return (row < 0 ? QModelIndex() : createIndex(
         row,
         0,
-        const_cast<DatabaseGroup*>(&parentGroup)
+        const_cast<DatabaseGroup*>(parentGroup)
     ));
 }
 
@@ -72,11 +74,12 @@ QVariant DatabaseGroupTreeModel::data(const QModelIndex& index, int role) const
         return QVariant();
 
     const DatabaseGroup* group = static_cast<const DatabaseGroup*>(index.internalPointer());
+    if (!group) return QVariant();
 
     switch (role) {
         case Qt::ItemDataRole::DisplayRole: case Qt::ItemDataRole::EditRole: return group->title();
         case Qt::ItemDataRole::DecorationRole: return QIcon::fromTheme("folder");
-        case (Qt::ItemDataRole::UserRole + 1): return QVariant::fromValue(group);
+        case (Qt::ItemDataRole::UserRole + 1): return QVariant::fromValue(group->uid());
         default: return QVariant();
     }
 }

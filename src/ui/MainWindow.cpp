@@ -1,7 +1,7 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
-#include "NewDatabase.h"
 #include "../core/EntryActionButtonDelegate.h"
+#include "../core/SecureBuffer.h"
 #include "../config/Constants.h"
 #include "DatabaseGroupManager.h"
 #include "DatabaseEntryManager.h"
@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::copyTextToClipboard(const QByteArray& text) const
+void MainWindow::copyTextToClipboard(const QString& text) const
 {
     QClipboard* clipboard = QGuiApplication::clipboard();
     if (clipboard && !text.isEmpty()) {
@@ -41,15 +41,33 @@ void MainWindow::copyTextToClipboard(const QByteArray& text) const
 void MainWindow::newDatabase()
 {
     try {
-        NewDbConfig config;
-        NewDatabase newDbForm(config, this);
-        if (newDbForm.exec() != QDialog::DialogCode::Accepted) return;
+        QString filePath = QFileDialog::getSaveFileName(
+            this,
+            "Select file",
+            QDir::currentPath(),
+            QString(Config::constants::FILE_FILTER)
+        );
+        if (filePath.isEmpty()) return;
 
         DatabaseSettings settings;
+
+        bool passwdOk;
+        QString password = QInputDialog::getText(
+            this,
+            "Enter the new password",
+            QString(),
+            QLineEdit::EchoMode::Password,
+            QString(),
+            &passwdOk
+        );
+        if (!passwdOk) return;
+        settings.password = SecureBuffer<QChar>(password.size());
+        std::memcpy(settings.password.data(), password.constData(), settings.password.byteSize());
+
         DatabaseSettingsManager manager(settings, nullptr, this);
         if (manager.exec() != QDialog::DialogCode::Accepted) return;
 
-        _database = std::make_unique<Database>(config, settings, this);
+        _database = std::make_unique<Database>(filePath, settings, this);
         _groupsModel->setDatabase(_database.get());
         _entriesModel->setDatabase(_database.get());
 
@@ -101,19 +119,22 @@ void MainWindow::openDatabase()
             return;
 
         bool ok;
-        SecureQByteArray password(QInputDialog::getText(
+        QString passwordInput = QInputDialog::getText(
             this,
             "Enter the password",
             QString(),
             QLineEdit::EchoMode::Password,
             QString(),
             &ok
-        ).toUtf8());
+        );
 
         if (!ok)
             return;
-        else if (password.isEmpty())
+        else if (passwordInput.isEmpty())
             throw std::runtime_error("Password cannot be empty!");
+
+        SecureBuffer<QChar> password(passwordInput.size());
+        std::memcpy(password.data(), passwordInput.constData(), password.byteSize());
 
         _database = std::make_unique<Database>(path, password);
         _groupsModel->setDatabase(_database.get());
@@ -236,23 +257,24 @@ void MainWindow::lockDatabase(bool ask)
     }
 }
 
-void MainWindow::newEntry() { openEntryManager(nullptr); }
+void MainWindow::newEntry() { openEntryManager(QUuid(0)); }
 
 void MainWindow::editEntry()
 {
     QModelIndex index = ui->tvEntries->currentIndex();
     if (!index.isValid()) return;
-    const DatabaseEntry* entry = index.data(Qt::UserRole + 1).value<const DatabaseEntry*>();
-    if (!entry) return;
-    openEntryManager(entry);
+    QUuid entryUid = index.data(Qt::UserRole + 1).value<QUuid>();
+    if (entryUid.isNull()) return;
+    openEntryManager(entryUid);
 }
 
 void MainWindow::deleteEntry()
 {
     QModelIndex index = ui->tvEntries->currentIndex();
     if (!index.isValid()) return;
-    const DatabaseEntry* entry = index.data(Qt::UserRole + 1).value<const DatabaseEntry*>();
-    if (!entry) return;
+    QUuid entryUid = index.data(Qt::UserRole + 1).value<QUuid>();
+    if (entryUid.isNull()) return;
+    const DatabaseEntry* entry = _database->entry(entryUid);
 
     QMessageBox::StandardButton button = QMessageBox::question(
         this,
@@ -287,22 +309,22 @@ void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIn
     _entriesProxyModel->setGroupFilter(selectedGroup->uid());
 }
 
-void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
+void MainWindow::openEntryManager(const QUuid& entryUid)
 {
     try {
+        const DatabaseEntry* entry = (!entryUid.isNull() ? _database->entry(entryUid) : nullptr);
         QModelIndex index = ui->tvGroups->currentIndex();
         if (!index.isValid()) return;
-        const DatabaseGroup* group = (existingEntry ? &_database->group(existingEntry->group()) : static_cast<const DatabaseGroup*>(index.internalPointer()));
-        if (!group) return;
-        QList<DatabaseEntryHistoryItem> history = (existingEntry ? _database->entryHistory(existingEntry->uid()) : QList<DatabaseEntryHistoryItem>());
-        DatabaseEntry entry;
-        DatabaseEntryManager manager(&entry, group, existingEntry, &history, this);
+        const DatabaseGroup* group = (!entry ? static_cast<const DatabaseGroup*>(index.internalPointer()) : nullptr);
+
+        DatabaseEntryDto entryDto;
+        DatabaseEntryManager manager(&entryDto, _database.get(), entry, group, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
-            if (existingEntry)
-                _database->editEntry(entry);
+            if (entryUid.isNull())
+                _database->addEntry(entryDto);
             else
-                _database->addEntry(entry);
+                _database->editEntry(entryUid, entryDto);
         }
     }
     catch (const std::runtime_error& error) {
@@ -315,16 +337,20 @@ void MainWindow::openEntryManager(const DatabaseEntry* existingEntry)
     }
 }
 
-void MainWindow::copyEntryUsername(const DatabaseEntry* entry)
+void MainWindow::copyEntryUsername(const QUuid& entryUid)
 {
-    if (!entry) return;
-    copyTextToClipboard(entry->username().toUtf8());
+    if (entryUid.isNull() || !_database) return;
+    if (const DatabaseEntry* entry = _database->entry(entryUid))
+        copyTextToClipboard(entry->username());
 }
 
-void MainWindow::copyEntryPassword(const DatabaseEntry* entry)
+void MainWindow::copyEntryPassword(const QUuid& entryUid)
 {
-    if (!entry) return;
-    copyTextToClipboard(entry->password());
+    if (entryUid.isNull() || !_database) return;
+    if (const DatabaseEntry* entry = _database->entry(entryUid)) {
+        SecureBuffer<QChar> password = _database->entryPassword(entryUid);
+        copyTextToClipboard(QString(password.data(), password.size()));
+    }
 }
 
 void MainWindow::autotypeEntry()
@@ -337,12 +363,15 @@ void MainWindow::newGroup()
     try {
         QModelIndex index = ui->tvGroups->currentIndex();
         if (!index.isValid()) return;
-        const DatabaseGroup* parentGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
-        DatabaseGroup group;
-        DatabaseGroupManager manager(&group, nullptr, parentGroup, this);
+        QUuid groupUid = index.data(Qt::UserRole + 1).value<QUuid>();
+        if (groupUid.isNull()) return;
+        const DatabaseGroup* parentGroup = _database->group(groupUid);
+        if (!parentGroup) return;
+        DatabaseGroupDto groupDto;
+        DatabaseGroupManager manager(&groupDto, nullptr, parentGroup, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted)
-            _database->addGroup(group);
+            _database->addGroup(groupDto);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -359,14 +388,16 @@ void MainWindow::editGroup()
     try {
         QModelIndex index = ui->tvGroups->currentIndex();
         if (!index.isValid()) return;
-        const DatabaseGroup* existingGroup = static_cast<const DatabaseGroup*>(index.internalPointer());
-        if (!existingGroup) return;
-        const DatabaseGroup* parentGroup = (!existingGroup->parent().isNull() ? &_database->group(existingGroup->parent()) : nullptr);
-        DatabaseGroup group(existingGroup->uid());
-        DatabaseGroupManager manager(&group, existingGroup, parentGroup, this);
+        QUuid groupUid = index.data(Qt::UserRole + 1).value<QUuid>();
+        if (groupUid.isNull()) return;
+        const DatabaseGroup* group = _database->group(groupUid);
+        if (!group) return;
+        const DatabaseGroup* parentGroup = (!group->parent().isNull() ? _database->group(group->parent()) : nullptr);
+        DatabaseGroupDto groupDto;
+        DatabaseGroupManager manager(&groupDto, group, parentGroup, this);
 
         if (manager.exec() == QDialog::DialogCode::Accepted)
-            _database->editGroup(group);
+            _database->editGroup(group->uid(), groupDto);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -408,7 +439,8 @@ void MainWindow::deleteGroup()
 
 void MainWindow::openPasswordGenerator()
 {
-    PasswordGenerator generator(nullptr, this);
+    SecureBuffer<QChar> buffer = SecureBuffer<QChar>(0);
+    PasswordGenerator generator(buffer, this);
     generator.exec();
 }
 

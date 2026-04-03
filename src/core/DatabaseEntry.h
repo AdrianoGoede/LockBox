@@ -4,15 +4,23 @@
 #include <QUuid>
 #include <QString>
 #include <QDateTime>
-#include <QJsonObject>
+#include <QDataStream>
+#include "SecureBuffer.h"
 #include "DatabaseGroup.h"
-#include "SecureQByteArray.h"
+#include "DatabaseEntryHistoryItem.h"
+
+struct DatabaseEntryDto {
+    QUuid group;
+    QString title, username, notes;
+    SecureBuffer<QChar> password;
+};
 
 class DatabaseEntry
 {
 public:
     DatabaseEntry();
-    DatabaseEntry(const QJsonObject& obj);
+    DatabaseEntry(const DatabaseEntryDto& entryDto, const SecureBuffer<std::byte>& masterKey);
+    DatabaseEntry(QDataStream& in);
     QUuid uid() const;
     void setUid(const QUuid& uid);
     QUuid group() const;
@@ -26,17 +34,20 @@ public:
     void setNotes(const QString& notes);
     QDateTime createdAt() const;
     QDateTime modifiedAt() const;
-    SecureQByteArray password() const;
-    void setPassword(const SecureQByteArray& password);
-    QJsonObject toJson() const;
+    SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
+    void setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey);
+    void recordHistory();
+    const QVector<DatabaseEntryHistoryItem>& history() const;
+    const DatabaseEntryHistoryItem& getHistoryItem(const QUuid& itemUid) const;
+    void toBinary(QDataStream& out) const;
 
 private:
     QUuid _uid;
     QUuid _group;
     QString _title, _username, _notes;
     QDateTime _createdAt, _modifiedAt;
-    QByteArray _nonce;
-    SecureQByteArray _encryptedPassword, _key;
+    QByteArray _keyNonce, _key, _passwordNonce, _password;
+    QVector<DatabaseEntryHistoryItem> _history;
 };
 
 #endif // DATABASEENTRY_H

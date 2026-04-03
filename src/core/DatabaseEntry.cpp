@@ -1,21 +1,39 @@
 #include "DatabaseEntry.h"
+#include "../config/Constants.h"
 #include "Crypto.h"
-#include <QJsonArray>
 
 DatabaseEntry::DatabaseEntry() : _uid(QUuid::createUuid()), _createdAt(QDateTime::currentDateTimeUtc()), _modifiedAt(_createdAt) {}
 
-DatabaseEntry::DatabaseEntry(const QJsonObject& obj)
+DatabaseEntry::DatabaseEntry(const DatabaseEntryDto& entryDto, const SecureBuffer<std::byte>& masterKey)
+    : _uid(QUuid::createUuid())
+    , _group(entryDto.group)
+    , _title(entryDto.title)
+    , _username(entryDto.username)
+    , _notes(entryDto.notes)
+    , _createdAt(QDateTime::currentDateTimeUtc())
+    , _modifiedAt(_createdAt)
 {
-    _uid = QUuid::fromString(obj["uuid"].toString());
-    _group = QUuid::fromString(obj["group"].toString());
-    _title = obj["title"].toString();
-    _username = obj["username"].toString();
-    _notes = obj["notes"].toString();
-    if (_uid.isNull() || _group.isNull() || _title.isEmpty())
-        throw std::runtime_error("Invalid or corrupted data");
-    this->setPassword(SecureQByteArray(obj["password"].toString().toUtf8()));
-    _createdAt = QDateTime::fromSecsSinceEpoch(obj["created"].toInteger());
-    _modifiedAt = QDateTime::fromSecsSinceEpoch(obj["modified"].toInteger());
+    setPassword(entryDto.password, masterKey);
+}
+
+DatabaseEntry::DatabaseEntry(QDataStream& in)
+{
+    in >> _uid
+       >> _group
+       >> _title
+       >> _username
+       >> _notes
+       >> _createdAt
+       >> _modifiedAt
+       >> _keyNonce
+       >> _key
+       >> _passwordNonce
+       >> _password;
+
+    quint32 size;
+    in >> size;
+    for (quint32 i = 0; i < size; i++)
+        _history.append(DatabaseEntryHistoryItem(in));
 }
 
 QUuid DatabaseEntry::uid() const { return _uid; }
@@ -72,30 +90,60 @@ QDateTime DatabaseEntry::createdAt() const { return _createdAt; }
 
 QDateTime DatabaseEntry::modifiedAt() const { return _modifiedAt; }
 
-SecureQByteArray DatabaseEntry::password() const
+SecureBuffer<QChar> DatabaseEntry::password(const SecureBuffer<std::byte>& masterKey) const
 {
-    SecureQByteArray result;
-    Crypto::decrypt(_encryptedPassword, _key, _nonce, result);
-    return result;
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_key, masterKey, _keyNonce);
+    SecureBuffer<std::byte> password = Crypto::decrypt(_password, entryKey, _passwordNonce);
+    return Crypto::byteToQChar(password);
 }
 
-void DatabaseEntry::setPassword(const SecureQByteArray& password)
+void DatabaseEntry::setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey)
 {
-    Crypto::generateKey(_key);
-    Crypto::encrypt(password, _key, _encryptedPassword, _nonce);
-    _modifiedAt = QDateTime::currentDateTimeUtc();
+    SecureBuffer<std::byte> entryKey = Crypto::generateKey();
+    QByteArray passwordNonce = Crypto::generateNonce();
+    QByteArray newPassword = Crypto::encrypt(Crypto::qCharToByte(password), entryKey, passwordNonce);
+
+    QByteArray keyNonce = Crypto::generateNonce();
+    QByteArray encryptedKey = Crypto::encrypt(entryKey, masterKey, keyNonce);
+
+    _keyNonce = keyNonce;
+    _key = encryptedKey;
+    _passwordNonce = passwordNonce;
+    _password = newPassword;
 }
 
-QJsonObject DatabaseEntry::toJson() const
+void DatabaseEntry::recordHistory()
 {
-    QJsonObject obj;
-    obj["uuid"] = _uid.toString(QUuid::StringFormat::WithoutBraces);
-    obj["group"] = _group.toString(QUuid::StringFormat::WithoutBraces);
-    obj["title"] = _title;
-    obj["username"] = _username;
-    obj["password"] = password().data();
-    obj["notes"] = _notes;
-    obj["created"] = _createdAt.toSecsSinceEpoch();
-    obj["modified"] = _modifiedAt.toSecsSinceEpoch();
-    return obj;
+    _history.append(DatabaseEntryHistoryItem(_username, _keyNonce, _key, _passwordNonce, _password));
+    while (_history.size() > Config::constants::MAX_DB_ENTRY_HISTORY_ITEMS)
+        _history.removeFirst();
+}
+
+const QVector<DatabaseEntryHistoryItem>& DatabaseEntry::history() const { return _history; }
+
+const DatabaseEntryHistoryItem& DatabaseEntry::getHistoryItem(const QUuid& itemUid) const
+{
+    for (const DatabaseEntryHistoryItem& item : _history)
+        if (item.itemUid() == itemUid)
+            return item;
+    throw std::runtime_error("History item does not exist");
+}
+
+void DatabaseEntry::toBinary(QDataStream& out) const
+{
+    out << _uid
+        << _group
+        << _title
+        << _username
+        << _notes
+        << _createdAt
+        << _modifiedAt
+        << _keyNonce
+        << _key
+        << _passwordNonce
+        << _password;
+
+    out << static_cast<quint32>(_history.size());
+    for (const DatabaseEntryHistoryItem& item : _history)
+        item.toBinary(out);
 }

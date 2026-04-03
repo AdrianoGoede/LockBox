@@ -27,11 +27,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(LockBox
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        src/ui/NewDatabase.h
-        src/ui/NewDatabase.cpp
-        src/ui/NewDatabase.ui
-        src/core/SecureQByteArray.h
-        src/core/SecureQByteArray.cpp
         src/core/Crypto.h
         src/core/Crypto.cpp
         src/core/Database.h
@@ -69,6 +64,9 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/ui/DatabaseSettingsManager.cpp
         src/ui/DatabaseSettingsManager.ui
         src/resources/Wordlists.qrc
+        src/core/SecureBuffer.h
+        src/core/SizeOnlyDevice.h
+        src/core/MemoryWriter.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

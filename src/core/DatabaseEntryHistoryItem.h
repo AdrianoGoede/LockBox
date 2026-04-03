@@ -1,30 +1,27 @@
 #ifndef DATABASEENTRYHISTORYITEM_H
 #define DATABASEENTRYHISTORYITEM_H
 
-#include "DatabaseEntry.h"
-#include "SecureQByteArray.h"
+#include "SecureBuffer.h"
 #include <QUuid>
-#include <QJsonObject>
+#include <QDateTime>
+#include <QDataStream>
 
 class DatabaseEntryHistoryItem
 {
 public:
-    explicit DatabaseEntryHistoryItem(const QJsonObject& obj);
-    explicit DatabaseEntryHistoryItem(const DatabaseEntry& entry);
+    explicit DatabaseEntryHistoryItem(QDataStream& in);
+    explicit DatabaseEntryHistoryItem(const QString& username, const QByteArray& keyNonce, const QByteArray& key, const QByteArray& passwordNonce, const QByteArray& password);
     QUuid itemUid() const;
-    QUuid entryUid() const;
     QDateTime createdAt() const;
     QString username() const;
-    SecureQByteArray password() const;
-    QJsonObject toJson() const;
+    SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
+    void toBinary(QDataStream& out) const;
 
 private:
-    QUuid _itemUid, _entryUid;
+    QUuid _itemUid;
     QString _username;
-    QByteArray _nonce;
-    SecureQByteArray _encryptedPassword, _key;
+    QByteArray _keyNonce, _key, _passwordNonce, _password;
     QDateTime _createdAt;
-    void setPassword(const SecureQByteArray& password);
 };
 
 #endif // DATABASEENTRYHISTORYITEM_H

@@ -19,9 +19,12 @@ enum DatabaseEntryModelColumns {
 
 class DatabaseEntryTableModel : public QAbstractTableModel
 {
+    Q_OBJECT
+
 public:
     explicit DatabaseEntryTableModel(QObject *parent = nullptr);
-    void setDatabase(Database* database);
+    const Database* database() const;
+    void setDatabase(const Database* database);
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -37,7 +40,7 @@ private slots:
     void entryRemoved(qsizetype row, QUuid entryUuid);
 
 private:
-    Database* _database = nullptr;
+    const Database* _database = nullptr;
 };
 
 #endif // DATABASEENTRYTABLEMODEL_H
