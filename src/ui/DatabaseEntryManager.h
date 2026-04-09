@@ -31,6 +31,9 @@ private:
     const DatabaseGroup* _group = nullptr;
     void setDataFields();
     void setHistoryTable();
+    void getUsername();
+    void getPassword();
+    void getNotes();
 };
 
 #endif // DATABASEENTRYMANAGER_H

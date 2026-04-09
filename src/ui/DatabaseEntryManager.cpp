@@ -29,8 +29,10 @@ void DatabaseEntryManager::copyUsernameToClipboard(const QModelIndex& index)
     if (!index.isValid() || !_entry || index.row() >= _entry->history().size()) return;
     const DatabaseEntryHistoryItem& item = _entry->history().at(index.row());
     const MainWindow* parent = qobject_cast<const MainWindow*>(this->parent());
-    if (parent)
-        parent->copyTextToClipboard(item.username());
+    if (parent) {
+        SecureBuffer<QChar> username = _database->entryHistoryItemUsername(_entry->uid(), item.itemUid());
+        parent->copyTextToClipboard(QString(username.data(), username.size()));
+    }
 }
 
 void DatabaseEntryManager::copyPasswordToClipboard(const QModelIndex& index)
@@ -58,30 +60,25 @@ void DatabaseEntryManager::accept()
 
     _entryDto->title = ui->leTitle->text();
     _entryDto->group = (_entry ? _entry->group() : _group->uid());
-    _entryDto->username = ui->leUsername->text();
-    _entryDto->notes = ui->teNotes->toPlainText();
 
-    QString password = ui->lePassword->text();
-    ui->lePassword->setText(QString(password.size(), 'X'));
-    ui->lePassword->clear();
-
-    _entryDto->password = SecureBuffer<QChar>(password.size());
-    std::memcpy(_entryDto->password.data(), password.constData(), _entryDto->password.byteSize());
-    password.fill('X', password.size());
-    password.clear();
+    getUsername();
+    getPassword();
+    getNotes();
 
     QDialog::accept();
 }
 
 void DatabaseEntryManager::setDataFields()
 {
+    SecureBuffer<QChar> username = (_entry ? _database->entryUsername(_entry->uid()) : SecureBuffer<QChar>());
     SecureBuffer<QChar> password = (_entry ? _database->entryPassword(_entry->uid()) : SecureBuffer<QChar>());
+    SecureBuffer<QChar> notes = (_entry ? _database->entryNotes(_entry->uid()) : SecureBuffer<QChar>());
 
     this->setWindowTitle(_entry ? "Edit Entry" : "Create Entry");
     ui->leTitle->setText(_entry ? _entry->title() : QString());
-    ui->leUsername->setText(_entry ? _entry->username() : QString());
+    ui->leUsername->setText(QString(username.data(), username.size()));
     ui->lePassword->setText(QString(password.data(), password.size()));
-    ui->teNotes->setText(_entry ? _entry->notes() : QString());
+    ui->teNotes->setText(QString(notes.data(), notes.size()));
 }
 
 void DatabaseEntryManager::setHistoryTable()
@@ -107,4 +104,40 @@ void DatabaseEntryManager::setHistoryTable()
         connect(passwordButton, &HistoryActionButtonDelegate::clicked, this, &DatabaseEntryManager::copyPasswordToClipboard);
         ui->twHistory->setItemDelegateForColumn(2, passwordButton);
     }
+}
+
+void DatabaseEntryManager::getUsername()
+{
+    QString username = ui->leUsername->text();
+    ui->leUsername->setText(QString(username.size(), 'X'));
+    ui->leUsername->clear();
+
+    _entryDto->username = SecureBuffer<QChar>(username.size());
+    std::memcpy(_entryDto->username.data(), username.constData(), _entryDto->username.byteSize());
+    username.fill('X', username.size());
+    username.clear();
+}
+
+void DatabaseEntryManager::getPassword()
+{
+    QString password = ui->lePassword->text();
+    ui->lePassword->setText(QString(password.size(), 'X'));
+    ui->lePassword->clear();
+
+    _entryDto->password = SecureBuffer<QChar>(password.size());
+    std::memcpy(_entryDto->password.data(), password.constData(), _entryDto->password.byteSize());
+    password.fill('X', password.size());
+    password.clear();
+}
+
+void DatabaseEntryManager::getNotes()
+{
+    QString notes = ui->teNotes->toPlainText();
+    ui->teNotes->setText(QString(notes.size(), 'X'));
+    ui->teNotes->clear();
+
+    _entryDto->notes = SecureBuffer<QChar>(notes.size());
+    std::memcpy(_entryDto->notes.data(), notes.constData(), _entryDto->notes.byteSize());
+    notes.fill('X', notes.size());
+    notes.clear();
 }

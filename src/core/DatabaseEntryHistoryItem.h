@@ -10,17 +10,16 @@ class DatabaseEntryHistoryItem
 {
 public:
     explicit DatabaseEntryHistoryItem(QDataStream& in);
-    explicit DatabaseEntryHistoryItem(const QString& username, const QByteArray& keyNonce, const QByteArray& key, const QByteArray& passwordNonce, const QByteArray& password);
+    explicit DatabaseEntryHistoryItem(const QByteArray& usernameNonce, const QByteArray& username, const QByteArray& passwordNonce, const QByteArray& password);
     QUuid itemUid() const;
+    SecureBuffer<QChar> username(const SecureBuffer<std::byte>& entryKey, const QByteArray& entryAad) const;
+    SecureBuffer<QChar> password(const SecureBuffer<std::byte>& entryKey, const QByteArray& entryAad) const;
     QDateTime createdAt() const;
-    QString username() const;
-    SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
     void toBinary(QDataStream& out) const;
 
 private:
     QUuid _itemUid;
-    QString _username;
-    QByteArray _keyNonce, _key, _passwordNonce, _password;
+    QByteArray _usernameNonce, _username, _passwordNonce, _password;
     QDateTime _createdAt;
 };
 

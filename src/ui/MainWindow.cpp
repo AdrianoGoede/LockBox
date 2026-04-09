@@ -340,8 +340,10 @@ void MainWindow::openEntryManager(const QUuid& entryUid)
 void MainWindow::copyEntryUsername(const QUuid& entryUid)
 {
     if (entryUid.isNull() || !_database) return;
-    if (const DatabaseEntry* entry = _database->entry(entryUid))
-        copyTextToClipboard(entry->username());
+    if (const DatabaseEntry* entry = _database->entry(entryUid)) {
+        SecureBuffer<QChar> username = _database->entryUsername(entryUid);
+        copyTextToClipboard(QString(username.data(), username.size()));
+    }
 }
 
 void MainWindow::copyEntryPassword(const QUuid& entryUid)

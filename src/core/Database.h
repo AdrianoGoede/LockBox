@@ -39,7 +39,10 @@ public:
     void removeGroup(const QUuid& uid);
     size_t entryCount() const;
     size_t groupCount() const;
+    SecureBuffer<QChar> entryUsername(const QUuid& entryUid) const;
     SecureBuffer<QChar> entryPassword(const QUuid& entryUid) const;
+    SecureBuffer<QChar> entryNotes(const QUuid& entryUid) const;
+    SecureBuffer<QChar> entryHistoryItemUsername(const QUuid& entryUid, const QUuid& historyItemUid) const;
     SecureBuffer<QChar> entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const;
     const DatabaseEntry* entry(const QUuid& uid) const;
     const DatabaseEntry* entry(int index) const;

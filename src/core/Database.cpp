@@ -102,8 +102,8 @@ void Database::editEntry(const QUuid& entryUid, const DatabaseEntryDto& entryDto
     entry.recordHistory();
 
     entry.setTitle(entryDto.title);
-    entry.setUsername(entryDto.username);
-    entry.setNotes(entryDto.notes);
+    entry.setUsername(entryDto.username, _masterKey);
+    entry.setNotes(entryDto.notes, _masterKey);
     entry.setPassword(entryDto.password, _masterKey);
 
     emit entryEdited(_dbEntryKeys.indexOf(entry.uid()), entry.uid());
@@ -168,6 +168,14 @@ size_t Database::entryCount() const { return _dbEntries.size(); }
 
 size_t Database::groupCount() const { return _dbGroups.size(); }
 
+SecureBuffer<QChar> Database::entryUsername(const QUuid& entryUid) const
+{
+    if (!_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
+    return entry.username(_masterKey);
+}
+
 SecureBuffer<QChar> Database::entryPassword(const QUuid& entryUid) const
 {
     if (!_dbEntries.contains(entryUid))
@@ -176,13 +184,28 @@ SecureBuffer<QChar> Database::entryPassword(const QUuid& entryUid) const
     return entry.password(_masterKey);
 }
 
+SecureBuffer<QChar> Database::entryNotes(const QUuid &entryUid) const
+{
+    if (!_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
+    return entry.notes(_masterKey);
+}
+
+SecureBuffer<QChar> Database::entryHistoryItemUsername(const QUuid& entryUid, const QUuid& historyItemUid) const
+{
+    if (!_dbEntries.contains(entryUid))
+        throw std::runtime_error("Entry does not exist");
+    const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
+    return entry.historyItemUsername(historyItemUid, _masterKey);
+}
+
 SecureBuffer<QChar> Database::entryHistoryItemPassword(const QUuid& entryUid, const QUuid& historyItemUid) const
 {
     if (!_dbEntries.contains(entryUid))
         throw std::runtime_error("Entry does not exist");
     const DatabaseEntry& entry = _dbEntries.find(entryUid).value();
-    const DatabaseEntryHistoryItem& item = entry.getHistoryItem(historyItemUid);
-    return item.password(_masterKey);
+    return entry.historyItemPassword(historyItemUid, _masterKey);
 }
 
 const DatabaseEntry* Database::entry(const QUuid& uid) const
