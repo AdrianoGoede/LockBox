@@ -26,18 +26,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::copyTextToClipboard(const QString& text) const
-{
-    QClipboard* clipboard = QGuiApplication::clipboard();
-    if (clipboard && !text.isEmpty()) {
-        clipboard->setText(text);
-        QTimer::singleShot(_clipboardTime, clipboard, [clipboard, text]() {
-            if (clipboard->text().toUtf8() == text)
-                clipboard->clear();
-        });
-    }
-}
-
 void MainWindow::newDatabase()
 {
     try {
@@ -319,6 +307,7 @@ void MainWindow::openEntryManager(const QUuid& entryUid)
 
         DatabaseEntryDto entryDto;
         DatabaseEntryManager manager(&entryDto, _database.get(), entry, group, this);
+        QMetaObject::Connection connection = connect(&manager, &DatabaseEntryManager::copyToClipboardRequested, this, &MainWindow::copyTextToClipboard);
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
             if (entryUid.isNull())
@@ -326,6 +315,8 @@ void MainWindow::openEntryManager(const QUuid& entryUid)
             else
                 _database->editEntry(entryUid, entryDto);
         }
+
+        disconnect(connection);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -459,6 +450,18 @@ void MainWindow::openRepo()
 void MainWindow::openAboutPage()
 {
 
+}
+
+void MainWindow::copyTextToClipboard(const QString& text) const
+{
+    QClipboard* clipboard = QGuiApplication::clipboard();
+    if (clipboard && !text.isEmpty()) {
+        clipboard->setText(text);
+        QTimer::singleShot(_clipboardTime, clipboard, [clipboard, text]() {
+            if (clipboard->text().toUtf8() == text)
+                clipboard->clear();
+        });
+    }
 }
 
 void MainWindow::handleInactivityTimeout()

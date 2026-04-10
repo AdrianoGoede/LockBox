@@ -19,7 +19,6 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-    void copyTextToClipboard(const QString& text) const;
 
 private slots:
     void newDatabase();
@@ -48,6 +47,7 @@ private slots:
     void openAppSettings();
     void openRepo();
     void openAboutPage();
+    void copyTextToClipboard(const QString& text) const;
     void handleInactivityTimeout();
 
 private:

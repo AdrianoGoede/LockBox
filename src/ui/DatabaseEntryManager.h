@@ -23,6 +23,9 @@ private slots:
     void copyPasswordToClipboard(const QModelIndex& index);
     void accept() override;
 
+signals:
+    void copyToClipboardRequested(QString text);
+
 private:
     Ui::DatabaseEntryManager* ui;
     DatabaseEntryDto* _entryDto = nullptr;

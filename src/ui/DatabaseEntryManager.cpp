@@ -28,21 +28,16 @@ void DatabaseEntryManager::copyUsernameToClipboard(const QModelIndex& index)
 {
     if (!index.isValid() || !_entry || index.row() >= _entry->history().size()) return;
     const DatabaseEntryHistoryItem& item = _entry->history().at(index.row());
-    const MainWindow* parent = qobject_cast<const MainWindow*>(this->parent());
-    if (parent) {
-        SecureBuffer<QChar> username = _database->entryHistoryItemUsername(_entry->uid(), item.itemUid());
-        parent->copyTextToClipboard(QString(username.data(), username.size()));
-    }
+    SecureBuffer<QChar> username = _database->entryHistoryItemUsername(_entry->uid(), item.itemUid());
+    emit copyToClipboardRequested(QString(username.data(), username.size()));
 }
 
 void DatabaseEntryManager::copyPasswordToClipboard(const QModelIndex& index)
 {
     if (!index.isValid() || !_entry || index.row() >= _entry->history().size()) return;
     const DatabaseEntryHistoryItem& item = _entry->history().at(index.row());
-    if (const MainWindow* parent = qobject_cast<const MainWindow*>(this->parent())) {
-        SecureBuffer<QChar> password = _database->entryHistoryItemPassword(_entry->uid(), item.itemUid());
-        parent->copyTextToClipboard(QString(password.data(), password.size()));
-    }
+    SecureBuffer<QChar> password = _database->entryHistoryItemPassword(_entry->uid(), item.itemUid());
+    emit copyToClipboardRequested(QString(password.data(), password.size()));
 }
 
 void DatabaseEntryManager::accept()
