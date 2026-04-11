@@ -67,6 +67,11 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/core/SecureBuffer.h
         src/core/SizeOnlyDevice.h
         src/core/MemoryWriter.h
+        src/ui/PasswordDialog.h
+        src/ui/PasswordDialog.cpp
+        src/ui/PasswordDialog.ui
+        src/core/Utils.h
+        src/core/Utils.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

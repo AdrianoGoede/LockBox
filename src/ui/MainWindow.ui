@@ -15,8 +15,8 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0" colspan="5">
-     <layout class="QHBoxLayout" name="buttonsLayout" stretch="4,4,1,4,4,4,1,4,4,4">
+    <item row="0" column="0" colspan="2">
+     <layout class="QHBoxLayout" name="buttonsLayout" stretch="4,4,1,4,4,4,1,4,4">
       <property name="spacing">
        <number>7</number>
       </property>
@@ -176,25 +176,22 @@
         </property>
        </widget>
       </item>
-      <item>
-       <widget class="QPushButton" name="pbAppSettings">
-        <property name="text">
-         <string/>
-        </property>
-        <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DriveOptical"/>
-        </property>
-        <property name="iconSize">
-         <size>
-          <width>20</width>
-          <height>20</height>
-         </size>
-        </property>
-       </widget>
-      </item>
      </layout>
     </item>
-    <item row="1" column="0">
+    <item row="1" column="0" rowspan="2">
+     <spacer name="horizontalSpacer">
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>360</width>
+        <height>38</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+    <item row="1" column="1">
      <widget class="QLabel" name="lbEntryTitleFilter">
       <property name="text">
        <string>Title</string>
@@ -205,58 +202,19 @@
      </widget>
     </item>
     <item row="2" column="1">
-     <widget class="QDateTimeEdit" name="dteCreatedFromFilter">
+     <widget class="QLineEdit" name="leEntryTitleFilter">
       <property name="enabled">
        <bool>false</bool>
       </property>
-      <property name="displayFormat">
-       <string>dd/MM/yyyy HH:mm:ss</string>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
       </property>
-      <property name="calendarPopup">
+      <property name="clearButtonEnabled">
        <bool>true</bool>
       </property>
      </widget>
     </item>
-    <item row="2" column="2">
-     <widget class="QDateTimeEdit" name="dteCreatedToFilter">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="displayFormat">
-       <string>dd/MM/yyyy HH:mm:ss</string>
-      </property>
-      <property name="calendarPopup">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="3">
-     <widget class="QDateTimeEdit" name="dteModifiedFromFilter">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="displayFormat">
-       <string>dd/MM/yyyy HH:mm:ss</string>
-      </property>
-      <property name="calendarPopup">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="4">
-     <widget class="QDateTimeEdit" name="dteModifiedToFilter">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="displayFormat">
-       <string>dd/MM/yyyy HH:mm:ss</string>
-      </property>
-      <property name="calendarPopup">
-       <bool>true</bool>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="0" colspan="5">
+    <item row="3" column="0" colspan="2">
      <layout class="QHBoxLayout" name="dataLayout" stretch="3,7">
       <item>
        <widget class="QTreeView" name="tvGroups">
@@ -288,36 +246,6 @@
        </widget>
       </item>
      </layout>
-    </item>
-    <item row="1" column="1" colspan="2">
-     <widget class="QLabel" name="lbCreatedFilter">
-      <property name="text">
-       <string>Creation</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="1" column="3" colspan="2">
-     <widget class="QLabel" name="lbModifiedFilter">
-      <property name="text">
-       <string>Modification</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <widget class="QLineEdit" name="leEntryTitleFilter">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
     </item>
    </layout>
   </widget>
@@ -375,7 +303,6 @@
      <string>Tools</string>
     </property>
     <addaction name="actionToolsPasswordGenerator"/>
-    <addaction name="actionToolsAppSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">

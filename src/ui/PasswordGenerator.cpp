@@ -3,6 +3,7 @@
 #include "../core/SecureBuffer.h"
 #include "../config/Constants.h"
 #include "../core/Crypto.h"
+#include "../core/Utils.h"
 #include <QStringBuilder>
 #include <QFileDialog>
 #include <QMessageBox>
@@ -17,18 +18,18 @@ PasswordGenerator::PasswordGenerator(SecureBuffer<QChar>& out, QWidget* parent) 
     connect(ui->pbGenerate, &QAbstractButton::clicked, this, &PasswordGenerator::generate);
 }
 
-PasswordGenerator::~PasswordGenerator() { delete ui; }
+PasswordGenerator::~PasswordGenerator()
+{
+    Utils::clearQLineEdit(ui->lePassword);
+    delete ui;
+}
 
 void PasswordGenerator::accept()
 {
     QString input = ui->lePassword->text();
-    ui->lePassword->setText(QString(input.size(), 'X'));
-    ui->lePassword->clear();
-
     _out = SecureBuffer<QChar>(input.size());
     std::memcpy(_out.data(), input.constData(), _out.byteSize());
-    input.fill('X', input.size());
-    input.clear();
+    Utils::clearQString(input);
 }
 
 void PasswordGenerator::generate()

@@ -31,10 +31,6 @@ private slots:
     void editEntry();
     void deleteEntry();
     void filterEntryTitle(const QString& filter);
-    void filterEntryCreatedAfter(const QDateTime& filter);
-    void filterEntryCreatedBefore(const QDateTime& filter);
-    void filterEntryModifiedAfter(const QDateTime& filter);
-    void filterEntryModifiedBefore(const QDateTime& filter);
     void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
     void openEntryManager(const QUuid& entryUid);
     void copyEntryUsername(const QUuid& entryUid);
@@ -44,7 +40,6 @@ private slots:
     void editGroup();
     void deleteGroup();
     void openPasswordGenerator();
-    void openAppSettings();
     void openRepo();
     void openAboutPage();
     void copyTextToClipboard(const QString& text) const;
@@ -63,7 +58,6 @@ private:
     void configureFilterBar();
     void configureGroupsTree();
     void configureEntryTable();
-    void setDefaultFilters();
     void setTimers();
     void toggleDatabaseOpenState();
     void closeChildDialogs();

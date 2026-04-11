@@ -6,7 +6,6 @@
 #include <QDateTime>
 #include <QDataStream>
 #include "SecureBuffer.h"
-#include "DatabaseGroup.h"
 #include "DatabaseEntryHistoryItem.h"
 
 struct DatabaseEntryDto {
@@ -24,7 +23,6 @@ public:
     QUuid uid() const;
     QUuid group() const;
     void setGroup(const QUuid& group);
-    void setGroup(const DatabaseGroup& group);
     QString title() const;
     void setTitle(const QString& title);
     SecureBuffer<QChar> username(const SecureBuffer<std::byte>& masterKey) const;
@@ -35,6 +33,7 @@ public:
     QDateTime modifiedAt() const;
     SecureBuffer<QChar> password(const SecureBuffer<std::byte>& masterKey) const;
     void setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey);
+    void changeMasterKey(const SecureBuffer<std::byte>& oldMasterKey, const SecureBuffer<std::byte>& newMasterKey);
     void recordHistory();
     const QVector<DatabaseEntryHistoryItem>& history() const;
     SecureBuffer<QChar> historyItemUsername(const QUuid& itemUid, const SecureBuffer<std::byte>& masterKey) const;

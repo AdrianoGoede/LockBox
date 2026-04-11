@@ -7,6 +7,7 @@
 #include "DatabaseEntryManager.h"
 #include "DatabaseSettingsManager.h"
 #include "PasswordGenerator.h"
+#include "PasswordDialog.h"
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -20,7 +21,6 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     configureFilterBar();
     configureEntryTable();
     configureGroupsTree();
-    setDefaultFilters();
     setTimers();
 }
 
@@ -39,18 +39,8 @@ void MainWindow::newDatabase()
 
         DatabaseSettings settings;
 
-        bool passwdOk;
-        QString password = QInputDialog::getText(
-            this,
-            "Enter the new password",
-            QString(),
-            QLineEdit::EchoMode::Password,
-            QString(),
-            &passwdOk
-        );
-        if (!passwdOk) return;
-        settings.password = SecureBuffer<QChar>(password.size());
-        std::memcpy(settings.password.data(), password.constData(), settings.password.byteSize());
+        PasswordDialog passwordDialog(settings.password, this);
+        if (passwordDialog.exec() != QDialog::DialogCode::Accepted) return;
 
         DatabaseSettingsManager manager(settings, nullptr, this);
         if (manager.exec() != QDialog::DialogCode::Accepted) return;
@@ -81,6 +71,14 @@ void MainWindow::newDatabase()
 void MainWindow::openDatabase()
 {
     try {
+        QString path = QFileDialog::getOpenFileName(
+            this,
+            "Select file",
+            QDir::currentPath(),
+            QString(Config::constants::FILE_FILTER)
+        );
+        if (path.isEmpty()) return;
+
         if (_database) {
             QMessageBox::StandardButton button = QMessageBox::question(
                 this,
@@ -96,33 +94,9 @@ void MainWindow::openDatabase()
                 _database->save();
         }
 
-        QString path = QFileDialog::getOpenFileName(
-            this,
-            "Select file",
-            QDir::currentPath(),
-            QString(Config::constants::FILE_FILTER)
-        );
-
-        if (path.isEmpty())
-            return;
-
-        bool ok;
-        QString passwordInput = QInputDialog::getText(
-            this,
-            "Enter the password",
-            QString(),
-            QLineEdit::EchoMode::Password,
-            QString(),
-            &ok
-        );
-
-        if (!ok)
-            return;
-        else if (passwordInput.isEmpty())
-            throw std::runtime_error("Password cannot be empty!");
-
-        SecureBuffer<QChar> password(passwordInput.size());
-        std::memcpy(password.data(), passwordInput.constData(), password.byteSize());
+        SecureBuffer<QChar> password;
+        PasswordDialog passwordDialog(password, this);
+        if (passwordDialog.exec() != QDialog::DialogCode::Accepted) return;
 
         _database = std::make_unique<Database>(path, password);
         _groupsModel->setDatabase(_database.get());
@@ -277,14 +251,6 @@ void MainWindow::deleteEntry()
 
 void MainWindow::filterEntryTitle(const QString& filter) { _entriesProxyModel->setTitleFilter(filter); }
 
-void MainWindow::filterEntryCreatedAfter(const QDateTime& filter) { _entriesProxyModel->setCreatedFromFilter(filter); }
-
-void MainWindow::filterEntryCreatedBefore(const QDateTime& filter) { _entriesProxyModel->setCreatedToFilter(filter); }
-
-void MainWindow::filterEntryModifiedAfter(const QDateTime& filter) { _entriesProxyModel->setModifiedFromFilter(filter); }
-
-void MainWindow::filterEntryModifiedBefore(const QDateTime& filter) { _entriesProxyModel->setModifiedToFilter(filter); }
-
 void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous)
 {
     ui->actionGroupsNew->setEnabled(current.isValid());
@@ -437,11 +403,6 @@ void MainWindow::openPasswordGenerator()
     generator.exec();
 }
 
-void MainWindow::openAppSettings()
-{
-
-}
-
 void MainWindow::openRepo()
 {
 
@@ -495,7 +456,6 @@ void MainWindow::configureMenuBar()
     connect(ui->actionGroupsEdit, &QAction::triggered, this, &MainWindow::editGroup);
     connect(ui->actionGroupsDelete, &QAction::triggered, this, &MainWindow::deleteGroup);
     connect(ui->actionToolsPasswordGenerator, &QAction::triggered, this, &MainWindow::openPasswordGenerator);
-    connect(ui->actionToolsAppSettings, &QAction::triggered, this, &MainWindow::openAppSettings);
     connect(ui->actionHelpGithubRepo, &QAction::triggered, this, &MainWindow::openRepo);
     connect(ui->actionHelpAbout, &QAction::triggered, this, &MainWindow::openAboutPage);
 }
@@ -509,16 +469,11 @@ void MainWindow::configureButtonBar()
     connect(ui->pbDeleteEntry, &QAbstractButton::clicked, this, &MainWindow::deleteEntry);
     connect(ui->pbPasswordGenerator, &QAbstractButton::clicked, this, &MainWindow::openPasswordGenerator);
     connect(ui->pbDatabaseSettings, &QAbstractButton::clicked, this, &MainWindow::openDatabaseSettings);
-    connect(ui->pbAppSettings, &QAbstractButton::clicked, this, &MainWindow::openAppSettings);
 }
 
 void MainWindow::configureFilterBar()
 {
     connect(ui->leEntryTitleFilter, &QLineEdit::textChanged, this, &MainWindow::filterEntryTitle);
-    connect(ui->dteCreatedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedAfter);
-    connect(ui->dteCreatedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryCreatedBefore);
-    connect(ui->dteModifiedFromFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedAfter);
-    connect(ui->dteModifiedToFilter, &QDateTimeEdit::dateTimeChanged, this, &MainWindow::filterEntryModifiedBefore);
 }
 
 void MainWindow::configureGroupsTree()
@@ -540,36 +495,28 @@ void MainWindow::configureEntryTable()
     ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
 
     EntryActionButtonDelegate* manageEntryButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("zoom-in"), this);
-    ui->tvEntries->setItemDelegateForColumn(3, manageEntryButtonDelegate);
-    ui->tvEntries->setColumnWidth(3, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
+    ui->tvEntries->setItemDelegateForColumn(2, manageEntryButtonDelegate);
+    ui->tvEntries->setColumnWidth(2, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeMode::Fixed);
     connect(manageEntryButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::openEntryManager);
 
     EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
-    ui->tvEntries->setItemDelegateForColumn(4, copyUsernameButtonDelegate);
-    ui->tvEntries->setColumnWidth(4, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
+    ui->tvEntries->setItemDelegateForColumn(3, copyUsernameButtonDelegate);
+    ui->tvEntries->setColumnWidth(3, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
     connect(copyUsernameButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryUsername);
 
     EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
-    ui->tvEntries->setItemDelegateForColumn(5, copyPasswordButtonDelegate);
-    ui->tvEntries->setColumnWidth(5, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
+    ui->tvEntries->setItemDelegateForColumn(4, copyPasswordButtonDelegate);
+    ui->tvEntries->setColumnWidth(4, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
     connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
 
     EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);
-    ui->tvEntries->setItemDelegateForColumn(6, performAutotypeButtonDelegate);
-    ui->tvEntries->setColumnWidth(6, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(6, QHeaderView::ResizeMode::Fixed);
+    ui->tvEntries->setItemDelegateForColumn(5, performAutotypeButtonDelegate);
+    ui->tvEntries->setColumnWidth(5, 90);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
     connect(performAutotypeButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::autotypeEntry);
-}
-
-void MainWindow::setDefaultFilters()
-{
-    ui->dteCreatedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
-    ui->dteCreatedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
-    ui->dteModifiedFromFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0));
-    ui->dteModifiedToFilter->setDateTime(QDateTime::fromSecsSinceEpoch(0).addYears(100));
 }
 
 void MainWindow::setTimers()
@@ -596,10 +543,6 @@ void MainWindow::toggleDatabaseOpenState()
     ui->pbDatabaseSettings->setEnabled(!ui->pbDatabaseSettings->isEnabled());
 
     ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
-    ui->dteCreatedFromFilter->setEnabled(!ui->dteCreatedFromFilter->isEnabled());
-    ui->dteCreatedToFilter->setEnabled(!ui->dteCreatedToFilter->isEnabled());
-    ui->dteModifiedFromFilter->setEnabled(!ui->dteModifiedFromFilter->isEnabled());
-    ui->dteModifiedToFilter->setEnabled(!ui->dteModifiedToFilter->isEnabled());
 }
 
 void MainWindow::closeChildDialogs()

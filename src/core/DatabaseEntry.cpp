@@ -54,12 +54,6 @@ void DatabaseEntry::setGroup(const QUuid& group)
     _modifiedAt = QDateTime::currentDateTimeUtc();
 }
 
-void DatabaseEntry::setGroup(const DatabaseGroup& group)
-{
-    _group = group.uid();
-    _modifiedAt = QDateTime::currentDateTimeUtc();
-}
-
 QString DatabaseEntry::title() const { return _title; }
 
 void DatabaseEntry::setTitle(const QString& title)
@@ -70,16 +64,18 @@ void DatabaseEntry::setTitle(const QString& title)
 
 SecureBuffer<QChar> DatabaseEntry::username(const SecureBuffer<std::byte>& masterKey) const
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
-    SecureBuffer<std::byte> username = Crypto::decrypt(_username, entryKey, _usernameNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
+    SecureBuffer<std::byte> username = Crypto::decrypt(_username, entryKey, _usernameNonce, aad);
     return Crypto::byteToQChar(username);
 }
 
 void DatabaseEntry::setUsername(const SecureBuffer<QChar>& name, const SecureBuffer<std::byte>& masterKey)
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
     QByteArray usernameNonce = Crypto::generateNonce();
-    QByteArray newUsername = Crypto::encrypt(Crypto::qCharToByte(name), entryKey, usernameNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray newUsername = Crypto::encrypt(Crypto::qCharToByte(name), entryKey, usernameNonce, aad);
 
     _usernameNonce = usernameNonce;
     _username = newUsername;
@@ -88,16 +84,18 @@ void DatabaseEntry::setUsername(const SecureBuffer<QChar>& name, const SecureBuf
 
 SecureBuffer<QChar> DatabaseEntry::notes(const SecureBuffer<std::byte>& masterKey) const
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
-    SecureBuffer<std::byte> notes = Crypto::decrypt(_notes, entryKey, _notesNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
+    SecureBuffer<std::byte> notes = Crypto::decrypt(_notes, entryKey, _notesNonce, aad);
     return Crypto::byteToQChar(notes);
 }
 
 void DatabaseEntry::setNotes(const SecureBuffer<QChar>& notes, const SecureBuffer<std::byte>& masterKey)
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
     QByteArray notesNonce = Crypto::generateNonce();
-    QByteArray newNotes = Crypto::encrypt(Crypto::qCharToByte(notes), entryKey, notesNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray newNotes = Crypto::encrypt(Crypto::qCharToByte(notes), entryKey, notesNonce, aad);
 
     _notesNonce = notesNonce;
     _notes = newNotes;
@@ -110,20 +108,30 @@ QDateTime DatabaseEntry::modifiedAt() const { return _modifiedAt; }
 
 SecureBuffer<QChar> DatabaseEntry::password(const SecureBuffer<std::byte>& masterKey) const
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
-    SecureBuffer<std::byte> password = Crypto::decrypt(_password, entryKey, _passwordNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
+    SecureBuffer<std::byte> password = Crypto::decrypt(_password, entryKey, _passwordNonce, aad);
     return Crypto::byteToQChar(password);
 }
 
 void DatabaseEntry::setPassword(const SecureBuffer<QChar>& password, const SecureBuffer<std::byte>& masterKey)
 {
-    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, masterKey, _entryKeyNonce, aad);
     QByteArray passwordNonce = Crypto::generateNonce();
-    QByteArray newPassword = Crypto::encrypt(Crypto::qCharToByte(password), entryKey, passwordNonce, _uid.toByteArray(QUuid::StringFormat::WithoutBraces));
+    QByteArray newPassword = Crypto::encrypt(Crypto::qCharToByte(password), entryKey, passwordNonce, aad);
 
     _passwordNonce = passwordNonce;
     _password = newPassword;
     _modifiedAt = QDateTime::currentDateTimeUtc();
+}
+
+void DatabaseEntry::changeMasterKey(const SecureBuffer<std::byte>& oldMasterKey, const SecureBuffer<std::byte>& newMasterKey)
+{
+    QByteArray aad = _uid.toByteArray(QUuid::StringFormat::WithoutBraces);
+    SecureBuffer<std::byte> entryKey = Crypto::decrypt(_entryKey, oldMasterKey, _entryKeyNonce, aad);
+    _entryKeyNonce = Crypto::generateNonce();
+    _entryKey = Crypto::encrypt(entryKey, newMasterKey, _entryKeyNonce, aad);
 }
 
 void DatabaseEntry::recordHistory()

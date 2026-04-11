@@ -1,7 +1,7 @@
 #include "DatabaseEntryManager.h"
 #include "ui_DatabaseEntryManager.h"
 #include "../core/HistoryActionButtonDelegate.h"
-#include "MainWindow.h"
+#include "../core/Utils.h"
 #include <QMessageBox>
 
 DatabaseEntryManager::DatabaseEntryManager(DatabaseEntryDto* entryDto, const Database* database, const DatabaseEntry* entry, const DatabaseGroup* group, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseEntryManager), _entryDto(entryDto), _database(database), _entry(entry), _group(group)
@@ -20,7 +20,13 @@ DatabaseEntryManager::DatabaseEntryManager(DatabaseEntryDto* entryDto, const Dat
     connect(ui->pbPasswordShow, &QAbstractButton::clicked, this, &DatabaseEntryManager::togglePasswordVisibility);
 }
 
-DatabaseEntryManager::~DatabaseEntryManager() { delete ui; }
+DatabaseEntryManager::~DatabaseEntryManager()
+{
+    Utils::clearQLineEdit(ui->leUsername);
+    Utils::clearQLineEdit(ui->lePassword);
+    Utils::clearQTextEdit(ui->teNotes);
+    delete ui;
+}
 
 void DatabaseEntryManager::togglePasswordVisibility(bool visible) { ui->lePassword->setEchoMode(visible ? QLineEdit::EchoMode::Normal : QLineEdit::EchoMode::Password); }
 
@@ -104,35 +110,23 @@ void DatabaseEntryManager::setHistoryTable()
 void DatabaseEntryManager::getUsername()
 {
     QString username = ui->leUsername->text();
-    ui->leUsername->setText(QString(username.size(), 'X'));
-    ui->leUsername->clear();
-
     _entryDto->username = SecureBuffer<QChar>(username.size());
     std::memcpy(_entryDto->username.data(), username.constData(), _entryDto->username.byteSize());
-    username.fill('X', username.size());
-    username.clear();
+    Utils::clearQString(username);
 }
 
 void DatabaseEntryManager::getPassword()
 {
     QString password = ui->lePassword->text();
-    ui->lePassword->setText(QString(password.size(), 'X'));
-    ui->lePassword->clear();
-
     _entryDto->password = SecureBuffer<QChar>(password.size());
     std::memcpy(_entryDto->password.data(), password.constData(), _entryDto->password.byteSize());
-    password.fill('X', password.size());
-    password.clear();
+    Utils::clearQString(password);
 }
 
 void DatabaseEntryManager::getNotes()
 {
     QString notes = ui->teNotes->toPlainText();
-    ui->teNotes->setText(QString(notes.size(), 'X'));
-    ui->teNotes->clear();
-
     _entryDto->notes = SecureBuffer<QChar>(notes.size());
     std::memcpy(_entryDto->notes.data(), notes.constData(), _entryDto->notes.byteSize());
-    notes.fill('X', notes.size());
-    notes.clear();
+    Utils::clearQString(notes);
 }

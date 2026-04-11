@@ -164,7 +164,7 @@ bool DatabaseGroupTreeModel::dropMimeData(const QMimeData* data, Qt::DropAction 
 
 void DatabaseGroupTreeModel::groupAdded(qsizetype row, QUuid groupUuid)
 {
-    beginInsertRows(QModelIndex(), _database->entryCount(), _database->entryCount());
+    beginInsertRows(QModelIndex(), (_database->groupCount() - 1), (_database->groupCount() - 1));
     endInsertRows();
 }
 

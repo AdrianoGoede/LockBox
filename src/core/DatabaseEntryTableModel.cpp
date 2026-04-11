@@ -38,7 +38,6 @@ QVariant DatabaseEntryTableModel::data(const QModelIndex& index, int role) const
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
             case DatabaseEntryModelColumns::Title: return entry->title();
-            case DatabaseEntryModelColumns::CreatedAt: return entry->createdAt();
             case DatabaseEntryModelColumns::ModifiedAt: return entry->modifiedAt();
         }
     }
@@ -55,7 +54,6 @@ QVariant DatabaseEntryTableModel::headerData(int section, Qt::Orientation orient
 
     switch (section) {
         case DatabaseEntryModelColumns::Title: return "Title";
-        case DatabaseEntryModelColumns::CreatedAt: return "Creation";
         case DatabaseEntryModelColumns::ModifiedAt: return "Modified At";
         case DatabaseEntryModelColumns::Manage: return "Manage";
         case DatabaseEntryModelColumns::CopyUsername: return "User";

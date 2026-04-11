@@ -19,53 +19,9 @@ QString DatabaseEntryTableProxyModel::titleFilter() const { return _titleFilter;
 
 void DatabaseEntryTableProxyModel::setTitleFilter(const QString& title)
 {
-    if (title != _titleFilter) {
+    if (title.toLower() != _titleFilter) {
         beginFilterChange();
-        _titleFilter = title;
-        endFilterChange();
-    }
-}
-
-QDateTime DatabaseEntryTableProxyModel::createdFromFilter() const { return _createdFromFilter; }
-
-void DatabaseEntryTableProxyModel::setCreatedFromFilter(const QDateTime& timestamp)
-{
-    if (timestamp != _createdFromFilter) {
-        beginFilterChange();
-        _createdFromFilter = timestamp;
-        endFilterChange();
-    }
-}
-
-QDateTime DatabaseEntryTableProxyModel::createdToFilter() const { return _createdToFilter; }
-
-void DatabaseEntryTableProxyModel::setCreatedToFilter(const QDateTime& timestamp)
-{
-    if (timestamp != _createdToFilter) {
-        beginFilterChange();
-        _createdToFilter = timestamp;
-        endFilterChange();
-    }
-}
-
-QDateTime DatabaseEntryTableProxyModel::modifiedFromFilter() const { return _modifedFromFilter; }
-
-void DatabaseEntryTableProxyModel::setModifiedFromFilter(const QDateTime& timestamp)
-{
-    if (timestamp != _modifedFromFilter) {
-        beginFilterChange();
-        _modifedFromFilter = timestamp;
-        endFilterChange();
-    }
-}
-
-QDateTime DatabaseEntryTableProxyModel::modifiedToFilter() const { return _modifiedToFilter; }
-
-void DatabaseEntryTableProxyModel::setModifiedToFilter(const QDateTime& timestamp)
-{
-    if (timestamp != _modifiedToFilter) {
-        beginFilterChange();
-        _modifiedToFilter = timestamp;
+        _titleFilter = title.toLower();
         endFilterChange();
     }
 }
@@ -84,9 +40,7 @@ bool DatabaseEntryTableProxyModel::filterAcceptsRow(int sourceRow, const QModelI
     if (!dbEntry) return false;
 
     if (!_groupFilter.isNull() && dbEntry->group() != _groupFilter) return false;
-    if (!dbEntry->title().contains(_titleFilter)) return false;
-    if (dbEntry->createdAt() < _createdFromFilter || dbEntry->createdAt() > _createdToFilter) return false;
-    if (dbEntry->modifiedAt() < _modifedFromFilter || dbEntry->modifiedAt() > _modifiedToFilter) return false;
+    if (!dbEntry->title().toLower().contains(_titleFilter)) return false;
 
     return true;
 }

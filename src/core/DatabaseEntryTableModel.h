@@ -8,12 +8,11 @@
 
 enum DatabaseEntryModelColumns {
     Title = 0,
-    CreatedAt = 1,
-    ModifiedAt = 2,
-    Manage = 3,
-    CopyUsername = 4,
-    CopyPassword = 5,
-    PerformAutotype = 6,
+    ModifiedAt = 1,
+    Manage = 2,
+    CopyUsername = 3,
+    CopyPassword = 4,
+    PerformAutotype = 5,
     ColumnCount
 };
 

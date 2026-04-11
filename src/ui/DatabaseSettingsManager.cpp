@@ -2,6 +2,7 @@
 #include "ui_DatabaseSettingsManager.h"
 #include "../config/Constants.h"
 #include "../core/Crypto.h"
+#include "PasswordDialog.h"
 #include <QInputDialog>
 
 DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, const DatabaseSettings* existingSettings, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseSettingsManager), _settings(settings), _existingSettings(existingSettings)
@@ -41,20 +42,13 @@ DatabaseSettingsManager::~DatabaseSettingsManager() { delete ui; }
 
 void DatabaseSettingsManager::changePassword()
 {
-    bool ok;
-    QString newPassword = QInputDialog::getText(
-        this,
-        "Enter the new password",
-        QString(),
-        QLineEdit::EchoMode::Password,
-        QString(),
-        &ok
-    );
-    if (!ok) return;
-
-    _settings.password = SecureBuffer<QChar>(newPassword.size());
-    std::memcpy(_settings.password.data(), newPassword.constData(), _settings.password.byteSize());
-    setKdfSettingsEnabled(ok);
+    PasswordDialog passwordGenerator(_settings.password, this);
+    if (passwordGenerator.exec() == QDialog::DialogCode::Accepted)
+        setKdfSettingsEnabled(true);
+    else {
+        _settings.password = SecureBuffer<QChar>();
+        setKdfSettingsEnabled(false);
+    }
 }
 
 void DatabaseSettingsManager::setUnlockTime()

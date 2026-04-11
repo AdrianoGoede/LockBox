@@ -286,8 +286,8 @@ void Database::setSettings(const DatabaseSettings& settings)
         throw std::runtime_error(QString("KDF paralellism must be between %1 and %2").arg(Config::constants::MIN_KDF_PARALLELISM).arg(Config::constants::MAX_KDF_PARALLELISM).toStdString());
     if (settings.clearClipboardAfter != 0 && (settings.clearClipboardAfter < Config::constants::MIN_CLIPBOARD_TIME || settings.clearClipboardAfter > Config::constants::MAX_CLIPBOARD_TIME))
         throw std::runtime_error(QString("Clipboard clearing time must be between %1 and %2").arg(Config::constants::MIN_CLIPBOARD_TIME).arg(Config::constants::MAX_CLIPBOARD_TIME).toStdString());
-    if (settings.lockAfter != 0 && (settings.lockAfter < Config::constants::MIN_CLIPBOARD_TIME || settings.lockAfter > Config::constants::MAX_CLIPBOARD_TIME))
-        throw std::runtime_error(QString("Clipboard clearing time must be between %1 and %2").arg(Config::constants::MIN_CLIPBOARD_TIME).arg(Config::constants::MAX_CLIPBOARD_TIME).toStdString());
+    if (settings.lockAfter != 0 && (settings.lockAfter < Config::constants::MIN_LOCK_AFTER || settings.lockAfter > Config::constants::MAX_LOCK_AFTER))
+        throw std::runtime_error(QString("Clipboard clearing time must be between %1 and %2").arg(Config::constants::MIN_LOCK_AFTER).arg(Config::constants::MAX_LOCK_AFTER).toStdString());
     if (!settings.password.isEmpty() && (settings.password.size() < Config::constants::MIN_PASSWORD_LENGTH || settings.password.size() > Config::constants::MAX_PASSWORD_LENGTH))
         throw std::runtime_error(QString("Password length must be from %1 to %2").arg(Config::constants::MIN_PASSWORD_LENGTH).arg(Config::constants::MAX_PASSWORD_LENGTH).toStdString());
 
@@ -300,8 +300,14 @@ void Database::setSettings(const DatabaseSettings& settings)
     _lockAfter = settings.lockAfter;
 
     if (!settings.password.isEmpty()) {
-        _kdfSalt = Crypto::generateSalt();
-        _masterKey = Crypto::deriveKey(Crypto::qCharToByte(settings.password), _kdfSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
+        QByteArray newSalt = Crypto::generateSalt();
+        SecureBuffer<std::byte> newMasterKey = Crypto::deriveKey(Crypto::qCharToByte(settings.password), newSalt, _kdfMemory, _kdfIterations, _kdfParallelism);
+
+        for (DatabaseEntry& entry : _dbEntries)
+            entry.changeMasterKey(_masterKey, newMasterKey);
+
+        _kdfSalt = newSalt;
+        _masterKey = std::move(newMasterKey);
     }
 }
 
