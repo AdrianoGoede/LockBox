@@ -109,6 +109,8 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
         memoryKiB *= 2;
 }
 
+void Crypto::zeroMemory(void* ptr, qsizetype count) { sodium_memzero(ptr, count); }
+
 QByteArray Crypto::generateNonce()
 {
     QByteArray nonce;

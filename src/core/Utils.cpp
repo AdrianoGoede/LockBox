@@ -1,8 +1,9 @@
 #include "Utils.h"
+#include "Crypto.h"
 
 void Utils::clearQString(QString& string)
 {
-    std::fill(string.begin(), string.end(), 'X');
+    Crypto::zeroMemory(string.data(), (string.size() * sizeof(QChar)));
     string.clear();
 }
 
