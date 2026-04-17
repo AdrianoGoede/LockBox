@@ -12,9 +12,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets LinguistTools sodium)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets LinguistTools)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
 set(TS_FILES LockBox_en_US.ts)
 
@@ -72,6 +69,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         src/ui/PasswordDialog.ui
         src/core/Utils.h
         src/core/Utils.cpp
+        src/ui/autotype/Autotyper.h
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET LockBox APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -95,10 +93,14 @@ else()
     qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 endif()
 
+if (UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    target_link_libraries(LockBox PRIVATE X11::X11 X11::Xtst)
+    target_sources(LockBox PRIVATE src/ui/autotype/UnixX11Autotyper.h)
+    target_sources(LockBox PRIVATE src/ui/autotype/UnixX11Autotyper.cpp)
+endif()
+
 target_link_libraries(LockBox PRIVATE Qt${QT_VERSION_MAJOR}::Widgets sodium)
-target_link_libraries(LockBox PRIVATE Qt${QT_VERSION_MAJOR}::Core)
-target_link_libraries(LockBox PRIVATE Qt${QT_VERSION_MAJOR}::Core)
-target_link_libraries(LockBox PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(LockBox PRIVATE Qt${QT_VERSION_MAJOR}::Core)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

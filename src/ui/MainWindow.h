@@ -3,13 +3,14 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include "autotype/Autotyper.h"
 #include "../core/Database.h"
 #include "../core/DatabaseGroupTreeModel.h"
 #include "../core/DatabaseEntryTableModel.h"
 #include "../core/DatabaseEntryTableProxyModel.h"
 
 namespace Ui {
-class MainWindow;
+    class MainWindow;
 }
 
 class MainWindow : public QMainWindow
@@ -17,7 +18,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow();
 
 private slots:
@@ -51,6 +52,7 @@ private:
     DatabaseGroupTreeModel* _groupsModel = nullptr;
     DatabaseEntryTableModel* _entriesModel = nullptr;
     DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
+    std::unique_ptr<Autotyper> _autotyper = nullptr;
     QTimer _inactivityTimer;
     quint32 _clipboardTime;
     void configureMenuBar();

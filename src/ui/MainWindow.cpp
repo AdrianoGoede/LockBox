@@ -13,7 +13,7 @@
 #include <QInputDialog>
 #include <QClipboard>
 
-MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWindow), _autotyper(Autotyper::create())
 {
     ui->setupUi(this);
     configureMenuBar();
@@ -314,7 +314,22 @@ void MainWindow::copyEntryPassword(const QUuid& entryUid)
 
 void MainWindow::autotypeEntry()
 {
+    if (!_database || !_autotyper || !_autotyper->isAvailable()) return;
 
+    QModelIndex index = ui->tvEntries->currentIndex();
+    if (!index.isValid()) return;
+    QUuid entryUid = index.data(Qt::UserRole + 1).value<QUuid>();
+    if (entryUid.isNull()) return;
+
+    SecureBuffer<QChar> username = _database->entryUsername(entryUid);
+    SecureBuffer<QChar> password = _database->entryPassword(entryUid);
+
+    this->showMinimized();
+
+    _autotyper->typeSequence(username, 1000);
+    _autotyper->typeSequence("\t", 0);
+    _autotyper->typeSequence(password, 0);
+    _autotyper->typeSequence("\n", 0);
 }
 
 void MainWindow::newGroup()
@@ -512,11 +527,15 @@ void MainWindow::configureEntryTable()
     ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
     connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
 
-    EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);
-    ui->tvEntries->setItemDelegateForColumn(5, performAutotypeButtonDelegate);
-    ui->tvEntries->setColumnWidth(5, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
-    connect(performAutotypeButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::autotypeEntry);
+    if (_autotyper && _autotyper->isAvailable()) {
+        EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);
+        ui->tvEntries->setItemDelegateForColumn(5, performAutotypeButtonDelegate);
+        ui->tvEntries->setColumnWidth(5, 90);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
+        connect(performAutotypeButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::autotypeEntry);
+    }
+    else
+        ui->tvEntries->setColumnHidden(DatabaseEntryModelColumns::PerformAutotype, true);
 }
 
 void MainWindow::setTimers()
