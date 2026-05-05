@@ -16,7 +16,7 @@ public:
             _buffer = static_cast<T*>(sodium_malloc(_size * sizeof(T)));
             if (!_buffer) throw std::bad_alloc();
         }
-    };
+    }
 
     SecureBuffer(SecureBuffer&& other) noexcept : _buffer(other._buffer), _size(other._size) {
         other._buffer = nullptr;
@@ -43,6 +43,10 @@ public:
     bool isEmpty() const { return (_size == 0); }
     T& operator[](size_t i) { return _buffer[i]; }
     const T& operator[](size_t i) const { return _buffer[i]; }
+    T* begin() { return _buffer; }
+    T* end() { return (_buffer + _size); }
+    const T* begin() const { return _buffer; }
+    const T* end() const { return (_buffer + _size); }
 
     SecureBuffer(const SecureBuffer&) = delete;
     SecureBuffer& operator=(const SecureBuffer&) = delete;

@@ -22,8 +22,8 @@ void UnixX11Autotyper::typeSequence(const SecureBuffer<QChar>& sequence, uint64_
     if (!_display) return;
 
     QThread::msleep(delay);
-    for (size_t i = 0; i < sequence.size(); i++)
-        typeQChar(sequence[i]);
+    for (const QChar& qchar : sequence)
+        typeQChar(qchar);
 
     XFlush(_display);
 }

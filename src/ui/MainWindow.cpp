@@ -515,17 +515,23 @@ void MainWindow::configureEntryTable()
     ui->tvEntries->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeMode::Fixed);
     connect(manageEntryButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::openEntryManager);
 
-    EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
-    ui->tvEntries->setItemDelegateForColumn(3, copyUsernameButtonDelegate);
-    ui->tvEntries->setColumnWidth(3, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
-    connect(copyUsernameButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryUsername);
+    if (QApplication::clipboard()) {
+        EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
+        ui->tvEntries->setItemDelegateForColumn(3, copyUsernameButtonDelegate);
+        ui->tvEntries->setColumnWidth(3, 90);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
+        connect(copyUsernameButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryUsername);
 
-    EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
-    ui->tvEntries->setItemDelegateForColumn(4, copyPasswordButtonDelegate);
-    ui->tvEntries->setColumnWidth(4, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
-    connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
+        EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
+        ui->tvEntries->setItemDelegateForColumn(4, copyPasswordButtonDelegate);
+        ui->tvEntries->setColumnWidth(4, 90);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
+        connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
+    }
+    else {
+        ui->tvEntries->setColumnHidden(DatabaseEntryModelColumns::CopyUsername, true);
+        ui->tvEntries->setColumnHidden(DatabaseEntryModelColumns::CopyPassword, true);
+    }
 
     if (_autotyper && _autotyper->isAvailable()) {
         EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);

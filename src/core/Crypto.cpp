@@ -1,5 +1,6 @@
 #include "Crypto.h"
 #include "../config/Constants.h"
+#include <QtTypes>
 #include <sodium.h>
 #include <QString>
 #include <QStringConverter>
@@ -11,15 +12,15 @@ QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const Secur
 
     quint64 ciphertextLength;
     int result = crypto_aead_aes256gcm_encrypt(
-        reinterpret_cast<u_char*>(ciphertext.data()),
+        reinterpret_cast<uchar*>(ciphertext.data()),
         &ciphertextLength,
-        reinterpret_cast<const u_char*>(plaintext.data()),
+        reinterpret_cast<const uchar*>(plaintext.data()),
         plaintext.size(),
-        reinterpret_cast<const u_char*>(associatedData.constData()),
+        reinterpret_cast<const uchar*>(associatedData.constData()),
         associatedData.size(),
         nullptr,
-        reinterpret_cast<const u_char*>(nonce.constData()),
-        reinterpret_cast<const u_char*>(key.data())
+        reinterpret_cast<const uchar*>(nonce.constData()),
+        reinterpret_cast<const uchar*>(key.data())
     );
     if (result != 0) {
         ciphertext.clear();
@@ -38,15 +39,15 @@ SecureBuffer<std::byte> Crypto::decrypt(const QByteArray& ciphertext, const Secu
 
     quint64 plaintextLength;
     int result = crypto_aead_aes256gcm_decrypt(
-        reinterpret_cast<u_char*>(plaintext.data()),
+        reinterpret_cast<uchar*>(plaintext.data()),
         &plaintextLength,
         nullptr,
-        reinterpret_cast<const u_char*>(ciphertext.constData()),
+        reinterpret_cast<const uchar*>(ciphertext.constData()),
         ciphertext.size(),
-        reinterpret_cast<const u_char*>(associatedData.constData()),
+        reinterpret_cast<const uchar*>(associatedData.constData()),
         associatedData.size(),
-        reinterpret_cast<const u_char*>(nonce.constData()),
-        reinterpret_cast<const u_char*>(key.data())
+        reinterpret_cast<const uchar*>(nonce.constData()),
+        reinterpret_cast<const uchar*>(key.data())
     );
     if (result != 0)
         throw std::runtime_error("AES-256-GCM decryption failed (forged/invalid)");
@@ -59,11 +60,11 @@ SecureBuffer<std::byte> Crypto::deriveKey(const SecureBuffer<std::byte>& passwor
     SecureBuffer<std::byte> key(Config::constants::KEY_BYTES);
 
     int result = crypto_pwhash(
-        reinterpret_cast<u_char*>(key.data()),
+        reinterpret_cast<uchar*>(key.data()),
         key.size(),
         reinterpret_cast<const char*>(password.data()),
         password.size(),
-        reinterpret_cast<const u_char*>(salt.constData()),
+        reinterpret_cast<const uchar*>(salt.constData()),
         iterations,
         (memoryKib * 1024ULL),
         crypto_pwhash_ALG_ARGON2ID13
@@ -89,11 +90,11 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
     auto benchmark = [&]() -> std::chrono::milliseconds {
         auto start = std::chrono::high_resolution_clock::now();
         int result = crypto_pwhash(
-            reinterpret_cast<u_char*>(dummyOutput.data()),
+            reinterpret_cast<uchar*>(dummyOutput.data()),
             Config::constants::SALT_BYTES,
             dummyPassword.toUtf8(),
             dummyPassword.size(),
-            reinterpret_cast<const u_char*>(dummySalt.constData()),
+            reinterpret_cast<const uchar*>(dummySalt.constData()),
             iterations,
             (memoryKiB * 1024ULL),
             crypto_pwhash_ALG_ARGON2ID13
