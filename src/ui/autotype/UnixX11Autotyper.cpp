@@ -42,10 +42,23 @@ void UnixX11Autotyper::typeSequence(const QString& sequence, uint64_t delay) con
 void UnixX11Autotyper::typeQChar(QChar qchar) const
 {
     char16_t unicode = qchar.unicode();
-
     KeySym keySym = (unicode < 0x100 ? unicode : (0x01000000 + unicode));
-    KeyCode keyCode = findOrRemapKey(keySym);
-    if (keyCode == 0) return;
+    KeyCode keyCode = XKeysymToKeycode(_display, keySym);
+    bool remapped = false;
+    int keySymsPerKeyCode = 0;
+    KeySym* originalMapping = nullptr;
+
+    if (keyCode == 0) {
+        int minKeyCode, maxKeyCode;
+        XDisplayKeycodes(_display, &minKeyCode, &maxKeyCode);
+        keyCode = maxKeyCode;
+        originalMapping = XGetKeyboardMapping(_display, keyCode, 1, &keySymsPerKeyCode);
+        KeySym remappedSym = keySym;
+        XChangeKeyboardMapping(_display, keyCode, 1, &remappedSym, 1);
+        XSync(_display, false);
+        remapped = true;
+        QThread::msleep(10);
+    }
 
     KeySym lower, upper;
     XConvertCase(keySym, &lower, &upper);
@@ -53,23 +66,12 @@ void UnixX11Autotyper::typeQChar(QChar qchar) const
 
     sendKey(keyCode, modifier, true);
     sendKey(keyCode, modifier, false);
-}
 
-KeyCode UnixX11Autotyper::findOrRemapKey(KeySym keySym) const
-{
-    KeyCode keyCode = XKeysymToKeycode(_display, keySym);
-    if (keyCode != 0) return keyCode;
-
-    int minKeyCode, maxKeyCode;
-    XDisplayKeycodes(_display, &minKeyCode, &maxKeyCode);
-
-    keyCode = maxKeyCode;
-    KeySym remapped = keySym;
-    XChangeKeyboardMapping(_display, keyCode, 1, &remapped, 1);
-    XSync(_display, false);
-
-    QThread::msleep(10);
-    return keyCode;
+    if (remapped && originalMapping) {
+        XChangeKeyboardMapping(_display, keyCode, keySymsPerKeyCode, originalMapping, 1);
+        XSync(_display, false);
+        XFree(originalMapping);
+    }
 }
 
 void UnixX11Autotyper::sendKey(KeyCode keycode, unsigned int modifiers, bool press) const

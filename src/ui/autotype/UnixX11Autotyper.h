@@ -19,7 +19,6 @@ public:
 private:
     Display* _display = nullptr;
     void typeQChar(QChar qchar) const;
-    KeyCode findOrRemapKey(KeySym keySym) const;
     void sendKey(KeyCode keycode, unsigned int modifiers, bool press) const;
 };
 
