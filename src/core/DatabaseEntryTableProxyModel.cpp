@@ -28,6 +28,8 @@ void DatabaseEntryTableProxyModel::setTitleFilter(const QString& title)
 
 bool DatabaseEntryTableProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const
 {
+    if (_groupFilter.isNull()) return false;
+
     QModelIndex index = sourceModel()->index(sourceRow, 0, sourceParent);
     const QUuid dbEntryUid = index.data(Qt::UserRole + 1).value<QUuid>();
     if (dbEntryUid.isNull()) return false;
@@ -39,7 +41,7 @@ bool DatabaseEntryTableProxyModel::filterAcceptsRow(int sourceRow, const QModelI
     const DatabaseEntry* dbEntry = database->entry(dbEntryUid);
     if (!dbEntry) return false;
 
-    if (!_groupFilter.isNull() && dbEntry->group() != _groupFilter) return false;
+    if (dbEntry->group() != _groupFilter) return false;
     if (!dbEntry->title().toLower().contains(_titleFilter)) return false;
 
     return true;

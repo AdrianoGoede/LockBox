@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QTimer>
+#include <QLabel>
 #include "autotype/Autotyper.h"
 #include "../core/Database.h"
 #include "../core/DatabaseGroupTreeModel.h"
@@ -33,8 +34,12 @@ private slots:
     void deleteEntry();
     void filterEntryTitle(const QString& filter);
     void filterEntriesByGroup(const QModelIndex& current, const QModelIndex& previous);
+    void handleGroupButtonsEnabledState(const QModelIndex& current, const QModelIndex& previous);
+    void handleEntryButtonsEnabledState(const QModelIndex& current, const QModelIndex& previous);
     void openEntryManager(const QUuid& entryUid);
+    void copySelectedEntryUsername();
     void copyEntryUsername(const QUuid& entryUid);
+    void copySelectedEntryPassword();
     void copyEntryPassword(const QUuid& entryUid);
     void autotypeEntry();
     void newGroup();
@@ -53,6 +58,8 @@ private:
     DatabaseEntryTableModel* _entriesModel = nullptr;
     DatabaseEntryTableProxyModel* _entriesProxyModel = nullptr;
     std::unique_ptr<Autotyper> _autotyper = nullptr;
+    QLabel* _statusbarLeftLabel = nullptr;
+    QLabel* _statusbarRightLabel = nullptr;
     QTimer _inactivityTimer;
     quint32 _clipboardTime;
     void configureMenuBar();
@@ -60,6 +67,7 @@ private:
     void configureFilterBar();
     void configureGroupsTree();
     void configureEntryTable();
+    void configureStatusBar();
     void setTimers();
     void toggleDatabaseOpenState();
     void closeChildDialogs();

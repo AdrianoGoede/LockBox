@@ -7,12 +7,15 @@
 #include <chrono>
 
 namespace Config::constants {
+    inline constexpr char PROJECT_REPOSITORY_URL[]                  = "https://github.com/AdrianoGoede/LockBox";
     inline constexpr char FILE_FILTER[]                             = "LockBox Database (*.lbdb)";
+    inline constexpr int STATUS_BAR_MESSAGE_TIME                    = 3000;
     inline constexpr int MIN_PASSWORD_LENGTH                        = 8;
     inline constexpr int MAX_PASSWORD_LENGTH                        = 100;
     inline constexpr int MIN_PASSPHRASE_LENGTH                      = 3;
     inline constexpr int MAX_PASSPHRASE_LENGTH                      = 50;
-    inline constexpr char WORDLISTS_RESOURCES_DIRECTORY[]           = ":/wordlists";
+    inline constexpr char ICONS_RESOURCE_DIRECTORY[]                = ":/icons";
+    inline constexpr char WORDLISTS_RESOURCE_DIRECTORY[]            = ":/wordlists";
     inline constexpr std::chrono::milliseconds DEFAULT_UNLOCK_DELAY = (std::chrono::milliseconds)1000;
 
     inline constexpr int SALT_BYTES                                 = crypto_pwhash_argon2id_SALTBYTES;

@@ -8,6 +8,7 @@
 #include "DatabaseSettingsManager.h"
 #include "PasswordGenerator.h"
 #include "PasswordDialog.h"
+#include <QDesktopServices>
 #include <QMessageBox>
 #include <QFileDialog>
 #include <QInputDialog>
@@ -21,6 +22,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     configureFilterBar();
     configureEntryTable();
     configureGroupsTree();
+    configureStatusBar();
     setTimers();
 }
 
@@ -57,8 +59,10 @@ void MainWindow::newDatabase()
         }
 
         toggleDatabaseOpenState();
+        _statusbarLeftLabel->setText(QString("Database '%1' currently open").arg(_database->filePath()));
     }
     catch (const std::runtime_error& error) {
+        _statusbarLeftLabel->setText("No database open");
         QMessageBox::critical(
             this,
             "Error",
@@ -111,8 +115,11 @@ void MainWindow::openDatabase()
         }
 
         toggleDatabaseOpenState();
+        ui->tvGroups->expandAll();
+        _statusbarLeftLabel->setText(QString("Database '%1' currently open").arg(_database->filePath()));
     }
     catch (const std::runtime_error& error) {
+        _statusbarLeftLabel->setText("No database open");
         QMessageBox::critical(
             this,
             "Error",
@@ -126,6 +133,7 @@ void MainWindow::saveDatabase()
 {
     try {
         _database->save();
+        ui->statusbar->showMessage("Database saved!", Config::constants::STATUS_BAR_MESSAGE_TIME);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -148,6 +156,8 @@ void MainWindow::saveDatabaseAs()
         );
         if (!path.isEmpty())
             _database->saveAs(path);
+        _statusbarLeftLabel->setText(QString("Database '%1' currently open").arg(_database->filePath()));
+        ui->statusbar->showMessage("Database saved!", Config::constants::STATUS_BAR_MESSAGE_TIME);
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -205,9 +215,11 @@ void MainWindow::lockDatabase(bool ask)
             _database->save();
         _groupsModel->setDatabase(nullptr);
         _entriesModel->setDatabase(nullptr);
+        _entriesProxyModel->setGroupFilter(QUuid(0));
         _database.reset();
         _inactivityTimer.stop();
         toggleDatabaseOpenState();
+        _statusbarLeftLabel->setText("No database open");
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -237,16 +249,20 @@ void MainWindow::deleteEntry()
     QUuid entryUid = index.data(Qt::UserRole + 1).value<QUuid>();
     if (entryUid.isNull()) return;
     const DatabaseEntry* entry = _database->entry(entryUid);
+    if (!entry) return;
+    QString entryTitle = entry->title();
 
     QMessageBox::StandardButton button = QMessageBox::question(
         this,
         "?",
-        QString("Are you sure you want to delete entry '%1'?").arg(entry->title().trimmed()),
+        QString("Are you sure you want to delete entry '%1'?").arg(entry->title()),
         (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No),
         QMessageBox::StandardButton::No
     );
-    if (button == QMessageBox::StandardButton::Yes)
+    if (button == QMessageBox::StandardButton::Yes) {
         _database->removeEntry(entry->uid());
+        ui->statusbar->showMessage(QString("Entry '%1' deleted!").arg(entryTitle), Config::constants::STATUS_BAR_MESSAGE_TIME);
+    }
 }
 
 void MainWindow::filterEntryTitle(const QString& filter) { _entriesProxyModel->setTitleFilter(filter); }
@@ -263,6 +279,28 @@ void MainWindow::filterEntriesByGroup(const QModelIndex& current, const QModelIn
     _entriesProxyModel->setGroupFilter(selectedGroup->uid());
 }
 
+void MainWindow::handleGroupButtonsEnabledState(const QModelIndex& current, const QModelIndex& previous)
+{
+    QUuid groupUid = current.data(Qt::UserRole + 1).value<QUuid>();
+    bool disabled = groupUid.isNull();
+    ui->actionGroupsNew->setEnabled(!disabled);
+    ui->actionGroupsEdit->setEnabled(!disabled);
+    ui->actionGroupsDelete->setEnabled(!disabled && groupUid != _database->rootGroupUuid());
+    ui->actionEntriesNew->setEnabled(!disabled);
+    ui->pbAddEntry->setEnabled(!disabled);
+}
+
+void MainWindow::handleEntryButtonsEnabledState(const QModelIndex& current, const QModelIndex& previous)
+{
+    bool disabled = current.data(Qt::UserRole + 1).value<QUuid>().isNull();
+    ui->actionEntriesEdit->setEnabled(!disabled);
+    ui->actionEntriesDelete->setEnabled(!disabled);
+    ui->actionEntriesCopyUsername_2->setEnabled(!disabled);
+    ui->actionEntriesCopyPassword->setEnabled(!disabled);
+    ui->pbEditEntry->setEnabled(!disabled);
+    ui->pbDeleteEntry->setEnabled(!disabled);
+}
+
 void MainWindow::openEntryManager(const QUuid& entryUid)
 {
     try {
@@ -276,10 +314,14 @@ void MainWindow::openEntryManager(const QUuid& entryUid)
         QMetaObject::Connection connection = connect(&manager, &DatabaseEntryManager::copyToClipboardRequested, this, &MainWindow::copyTextToClipboard);
 
         if (manager.exec() == QDialog::DialogCode::Accepted) {
-            if (entryUid.isNull())
+            if (entryUid.isNull()) {
                 _database->addEntry(entryDto);
-            else
+                ui->statusbar->showMessage(QString("Entry '%1' added!").arg(entryDto.title), Config::constants::STATUS_BAR_MESSAGE_TIME);
+            }
+            else {
                 _database->editEntry(entryUid, entryDto);
+                ui->statusbar->showMessage("Entry edited!", Config::constants::STATUS_BAR_MESSAGE_TIME);
+            }
         }
 
         disconnect(connection);
@@ -294,13 +336,28 @@ void MainWindow::openEntryManager(const QUuid& entryUid)
     }
 }
 
+void MainWindow::copySelectedEntryUsername()
+{
+    QModelIndex index = ui->tvEntries->currentIndex();
+    if (!index.isValid()) return;
+    copyEntryUsername(index.data(Qt::UserRole + 1).value<QUuid>());
+}
+
 void MainWindow::copyEntryUsername(const QUuid& entryUid)
 {
     if (entryUid.isNull() || !_database) return;
     if (const DatabaseEntry* entry = _database->entry(entryUid)) {
         SecureBuffer<QChar> username = _database->entryUsername(entryUid);
         copyTextToClipboard(QString(username.data(), username.size()));
+        _statusbarRightLabel->setText(QString("Username of '%1' on the clipboard!").arg(entry->title().trimmed()));
     }
+}
+
+void MainWindow::copySelectedEntryPassword()
+{
+    QModelIndex index = ui->tvEntries->currentIndex();
+    if (!index.isValid()) return;
+    copyEntryPassword(index.data(Qt::UserRole + 1).value<QUuid>());
 }
 
 void MainWindow::copyEntryPassword(const QUuid& entryUid)
@@ -309,6 +366,7 @@ void MainWindow::copyEntryPassword(const QUuid& entryUid)
     if (const DatabaseEntry* entry = _database->entry(entryUid)) {
         SecureBuffer<QChar> password = _database->entryPassword(entryUid);
         copyTextToClipboard(QString(password.data(), password.size()));
+        _statusbarRightLabel->setText(QString("Password of '%1' on the clipboard!").arg(entry->title().trimmed()));
     }
 }
 
@@ -330,6 +388,8 @@ void MainWindow::autotypeEntry()
     _autotyper->typeSequence("\t", 0);
     _autotyper->typeSequence(password, 0);
     _autotyper->typeSequence("\n", 0);
+
+    ui->statusbar->showMessage("Entry autotyped!", Config::constants::STATUS_BAR_MESSAGE_TIME);
 }
 
 void MainWindow::newGroup()
@@ -344,8 +404,10 @@ void MainWindow::newGroup()
         DatabaseGroupDto groupDto;
         DatabaseGroupManager manager(&groupDto, nullptr, parentGroup, this);
 
-        if (manager.exec() == QDialog::DialogCode::Accepted)
+        if (manager.exec() == QDialog::DialogCode::Accepted) {
             _database->addGroup(groupDto);
+            ui->statusbar->showMessage(QString("Group '%1' added!").arg(groupDto.title), Config::constants::STATUS_BAR_MESSAGE_TIME);
+        }
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -370,8 +432,10 @@ void MainWindow::editGroup()
         DatabaseGroupDto groupDto;
         DatabaseGroupManager manager(&groupDto, group, parentGroup, this);
 
-        if (manager.exec() == QDialog::DialogCode::Accepted)
+        if (manager.exec() == QDialog::DialogCode::Accepted) {
             _database->editGroup(group->uid(), groupDto);
+            ui->statusbar->showMessage("Group edited!");
+        }
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -390,6 +454,7 @@ void MainWindow::deleteGroup()
         if (!index.isValid()) return;
         const DatabaseGroup* group = static_cast<const DatabaseGroup*>(index.internalPointer());
         if (!group) return;
+        QString groupTitle = group->title();
 
         QMessageBox::StandardButton button = QMessageBox::question(
             this,
@@ -398,8 +463,10 @@ void MainWindow::deleteGroup()
             (QMessageBox::StandardButton::Yes | QMessageBox::StandardButton::No),
             QMessageBox::StandardButton::No
         );
-        if (button == QMessageBox::StandardButton::Yes)
+        if (button == QMessageBox::StandardButton::Yes) {
             _database->removeGroup(group->uid());
+            ui->statusbar->showMessage(QString("Group '%1' and all it's entries deleted!").arg(groupTitle), Config::constants::STATUS_BAR_MESSAGE_TIME);
+        }
     }
     catch (const std::runtime_error& error) {
         QMessageBox::critical(
@@ -418,10 +485,7 @@ void MainWindow::openPasswordGenerator()
     generator.exec();
 }
 
-void MainWindow::openRepo()
-{
-
-}
+void MainWindow::openRepo() { QDesktopServices::openUrl(QUrl(Config::constants::PROJECT_REPOSITORY_URL)); }
 
 void MainWindow::openAboutPage()
 {
@@ -433,9 +497,10 @@ void MainWindow::copyTextToClipboard(const QString& text) const
     QClipboard* clipboard = QGuiApplication::clipboard();
     if (clipboard && !text.isEmpty()) {
         clipboard->setText(text);
-        QTimer::singleShot(_clipboardTime, clipboard, [clipboard, text]() {
+        QTimer::singleShot(_clipboardTime, clipboard, [this, clipboard, text]() {
             if (clipboard->text().toUtf8() == text)
                 clipboard->clear();
+            _statusbarRightLabel->clear();
         });
     }
 }
@@ -467,6 +532,8 @@ void MainWindow::configureMenuBar()
     connect(ui->actionEntriesNew, &QAction::triggered, this, &MainWindow::newEntry);
     connect(ui->actionEntriesEdit, &QAction::triggered, this, &MainWindow::editEntry);
     connect(ui->actionEntriesDelete, &QAction::triggered, this, &MainWindow::deleteEntry);
+    connect(ui->actionEntriesCopyUsername_2, &QAction::triggered, this, &MainWindow::copySelectedEntryUsername);
+    connect(ui->actionEntriesCopyPassword, &QAction::triggered, this, &MainWindow::copySelectedEntryPassword);
     connect(ui->actionGroupsNew, &QAction::triggered, this, &MainWindow::newGroup);
     connect(ui->actionGroupsEdit, &QAction::triggered, this, &MainWindow::editGroup);
     connect(ui->actionGroupsDelete, &QAction::triggered, this, &MainWindow::deleteGroup);
@@ -498,6 +565,7 @@ void MainWindow::configureGroupsTree()
     ui->tvGroups->setAcceptDrops(true);
     ui->tvGroups->setDropIndicatorShown(true);
     connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::filterEntriesByGroup);
+    connect(ui->tvGroups->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::handleGroupButtonsEnabledState);
 }
 
 void MainWindow::configureEntryTable()
@@ -508,24 +576,25 @@ void MainWindow::configureEntryTable()
     ui->tvEntries->setModel(_entriesProxyModel);
     ui->tvEntries->setSortingEnabled(true);
     ui->tvEntries->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeMode::Stretch);
+    connect(ui->tvEntries->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::handleEntryButtonsEnabledState);
 
-    EntryActionButtonDelegate* manageEntryButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("zoom-in"), this);
+    EntryActionButtonDelegate* manageEntryButtonDelegate = new EntryActionButtonDelegate(QIcon(QString("%1/manage.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
     ui->tvEntries->setItemDelegateForColumn(2, manageEntryButtonDelegate);
     ui->tvEntries->setColumnWidth(2, 90);
-    ui->tvEntries->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeMode::Fixed);
+    ui->tvEntries->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeMode::ResizeToContents);
     connect(manageEntryButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::openEntryManager);
 
     if (QApplication::clipboard()) {
-        EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
+        EntryActionButtonDelegate* copyUsernameButtonDelegate = new EntryActionButtonDelegate(QIcon(QString("%1/user.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
         ui->tvEntries->setItemDelegateForColumn(3, copyUsernameButtonDelegate);
         ui->tvEntries->setColumnWidth(3, 90);
-        ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::Fixed);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeMode::ResizeToContents);
         connect(copyUsernameButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryUsername);
 
-        EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
+        EntryActionButtonDelegate* copyPasswordButtonDelegate = new EntryActionButtonDelegate(QIcon(QString("%1/unlock.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
         ui->tvEntries->setItemDelegateForColumn(4, copyPasswordButtonDelegate);
         ui->tvEntries->setColumnWidth(4, 90);
-        ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::Fixed);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(4, QHeaderView::ResizeMode::ResizeToContents);
         connect(copyPasswordButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::copyEntryPassword);
     }
     else {
@@ -534,14 +603,27 @@ void MainWindow::configureEntryTable()
     }
 
     if (_autotyper && _autotyper->isAvailable()) {
-        EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon::fromTheme("input-keyboard"), this);
+        EntryActionButtonDelegate* performAutotypeButtonDelegate = new EntryActionButtonDelegate(QIcon(QString("%1/enter.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
         ui->tvEntries->setItemDelegateForColumn(5, performAutotypeButtonDelegate);
         ui->tvEntries->setColumnWidth(5, 90);
-        ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::Fixed);
+        ui->tvEntries->horizontalHeader()->setSectionResizeMode(5, QHeaderView::ResizeMode::ResizeToContents);
         connect(performAutotypeButtonDelegate, &EntryActionButtonDelegate::clicked, this, &MainWindow::autotypeEntry);
     }
-    else
+    else {
         ui->tvEntries->setColumnHidden(DatabaseEntryModelColumns::PerformAutotype, true);
+        ui->actionEntriesPerformAutotype->setVisible(false);
+    }
+}
+
+void MainWindow::configureStatusBar()
+{
+    _statusbarLeftLabel = new QLabel("No database open", ui->statusbar);
+    ui->statusbar->addWidget(_statusbarLeftLabel);
+    _statusbarRightLabel = new QLabel(QString(), ui->statusbar);
+    ui->statusbar->addPermanentWidget(_statusbarRightLabel);
+
+    if (!_autotyper->isAvailable())
+        _statusbarRightLabel->setText("Autotype feature not available on this platform :(");
 }
 
 void MainWindow::setTimers()
@@ -552,22 +634,22 @@ void MainWindow::setTimers()
 
 void MainWindow::toggleDatabaseOpenState()
 {
-    ui->actionDatabaseSave->setEnabled(!ui->actionDatabaseSave->isEnabled());
-    ui->actionDatabaseSaveAs->setEnabled(!ui->actionDatabaseSaveAs->isEnabled());
-    ui->actionDatabaseSettings->setEnabled(!ui->actionDatabaseSettings->isEnabled());
-    ui->actionDatabaseLock->setEnabled(!ui->actionDatabaseLock->isEnabled());
+    ui->actionDatabaseSave->setEnabled(_database != nullptr);
+    ui->actionDatabaseSaveAs->setEnabled(_database != nullptr);
+    ui->actionDatabaseSettings->setEnabled(_database != nullptr);
+    ui->actionDatabaseLock->setEnabled(_database != nullptr);
 
-    ui->menuEntries->setEnabled(!ui->menuEntries->isEnabled());
-    ui->menuGroups->setEnabled(!ui->menuGroups->isEnabled());
+    ui->menuEntries->setEnabled(_database != nullptr);
+    ui->menuGroups->setEnabled(_database != nullptr);
 
-    ui->pbSave->setEnabled(!ui->pbSave->isEnabled());
-    ui->pbLock->setEnabled(!ui->pbLock->isEnabled());
-    ui->pbAddEntry->setEnabled(!ui->pbAddEntry->isEnabled());
-    ui->pbEditEntry->setEnabled(!ui->pbEditEntry->isEnabled());
-    ui->pbDeleteEntry->setEnabled(!ui->pbDeleteEntry->isEnabled());
-    ui->pbDatabaseSettings->setEnabled(!ui->pbDatabaseSettings->isEnabled());
+    ui->pbSave->setEnabled(_database != nullptr);
+    ui->pbLock->setEnabled(_database != nullptr);
+    ui->pbAddEntry->setEnabled(_database != nullptr ? ui->pbAddEntry->isEnabled() : false);
+    ui->pbEditEntry->setEnabled(_database != nullptr ? ui->pbEditEntry->isEnabled() : false);
+    ui->pbDeleteEntry->setEnabled(_database != nullptr ? ui->pbDeleteEntry->isEnabled() : false);
+    ui->pbDatabaseSettings->setEnabled(_database != nullptr);
 
-    ui->leEntryTitleFilter->setEnabled(!ui->leEntryTitleFilter->isEnabled());
+    ui->leEntryTitleFilter->setEnabled(_database != nullptr);
 }
 
 void MainWindow::closeChildDialogs()

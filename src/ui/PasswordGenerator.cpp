@@ -16,6 +16,7 @@ PasswordGenerator::PasswordGenerator(SecureBuffer<QChar>& out, QWidget* parent) 
     setPasswordTab();
     setPassphraseTab();
     connect(ui->pbGenerate, &QAbstractButton::clicked, this, &PasswordGenerator::generate);
+    connect(ui->pbToggleVisibility, &QAbstractButton::clicked, this, &PasswordGenerator::togglePasswordVisibility);
 }
 
 PasswordGenerator::~PasswordGenerator()
@@ -30,6 +31,7 @@ void PasswordGenerator::accept()
     _out = SecureBuffer<QChar>(input.size());
     std::memcpy(_out.data(), input.constData(), _out.byteSize());
     Utils::clearQString(input);
+    QDialog::accept();
 }
 
 void PasswordGenerator::generate()
@@ -97,6 +99,7 @@ void PasswordGenerator::addWordlist()
     QStringList paths = QFileDialog::getOpenFileNames(this, "Select wordlist files", QDir::currentPath());
     for (const QString& path : paths)
         ui->lwPassphraseWordlists->addItem(path);
+    buildWordlist();
 }
 
 void PasswordGenerator::removeWordlist()
@@ -133,8 +136,6 @@ void PasswordGenerator::handleWordlistSelectionChange()
 void PasswordGenerator::setPasswordTab()
 {
     buildCharset();
-
-    connect(ui->pbToggleVisibility, &QAbstractButton::clicked, this, &PasswordGenerator::togglePasswordVisibility);
     connect(ui->hsPasswordLength, &QAbstractSlider::valueChanged, this, &PasswordGenerator::handlePasswordLengthChange);
     ui->hsPasswordLength->setMinimum(Config::constants::MIN_PASSWORD_LENGTH);
     ui->hsPasswordLength->setMaximum(Config::constants::MAX_PASSWORD_LENGTH);
@@ -147,10 +148,10 @@ void PasswordGenerator::setPasswordTab()
 
 void PasswordGenerator::setPassphraseTab()
 {
-    QDir directory(Config::constants::WORDLISTS_RESOURCES_DIRECTORY);
+    QDir directory(Config::constants::WORDLISTS_RESOURCE_DIRECTORY);
     QStringList files = directory.entryList(QDir::Filter::Files);
     for (const QString& file : files)
-        ui->lwPassphraseWordlists->addItem(QString("%1/%2").arg(Config::constants::WORDLISTS_RESOURCES_DIRECTORY).arg(file));
+        ui->lwPassphraseWordlists->addItem(QString("%1/%2").arg(directory.canonicalPath()).arg(file));
 
     buildWordlist();
     connect(ui->lwPassphraseWordlists, &QListWidget::itemSelectionChanged, this, &PasswordGenerator::handleWordlistSelectionChange);

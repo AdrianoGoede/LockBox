@@ -19,6 +19,7 @@ public:
 
 private slots:
     void togglePasswordVisibility(bool visible);
+    void generatePassword();
     void copyUsernameToClipboard(const QModelIndex& index);
     void copyPasswordToClipboard(const QModelIndex& index);
     void accept() override;

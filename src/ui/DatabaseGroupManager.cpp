@@ -9,7 +9,7 @@ DatabaseGroupManager::DatabaseGroupManager(DatabaseGroupDto* groupDto, const Dat
 
     ui->setupUi(this);
     this->setWindowTitle(_group ? "Edit Group" : "New Group");
-    ui->leGroupParent->setText(_parentGroup ? _parentGroup->title() : "Root");
+    ui->leGroupParent->setText(_parentGroup ? _parentGroup->title() : QString());
     ui->leGroupName->setText(_group ? _group->title() : QString());
 }
 

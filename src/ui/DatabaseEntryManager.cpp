@@ -1,7 +1,9 @@
 #include "DatabaseEntryManager.h"
 #include "ui_DatabaseEntryManager.h"
+#include "PasswordGenerator.h"
 #include "../core/HistoryActionButtonDelegate.h"
 #include "../core/Utils.h"
+#include "../config/Constants.h"
 #include <QMessageBox>
 
 DatabaseEntryManager::DatabaseEntryManager(DatabaseEntryDto* entryDto, const Database* database, const DatabaseEntry* entry, const DatabaseGroup* group, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseEntryManager), _entryDto(entryDto), _database(database), _entry(entry), _group(group)
@@ -18,6 +20,7 @@ DatabaseEntryManager::DatabaseEntryManager(DatabaseEntryDto* entryDto, const Dat
     setHistoryTable();
 
     connect(ui->pbPasswordShow, &QAbstractButton::clicked, this, &DatabaseEntryManager::togglePasswordVisibility);
+    connect(ui->pbPasswordGenerate, &QAbstractButton::clicked, this, &DatabaseEntryManager::generatePassword);
 }
 
 DatabaseEntryManager::~DatabaseEntryManager()
@@ -29,6 +32,17 @@ DatabaseEntryManager::~DatabaseEntryManager()
 }
 
 void DatabaseEntryManager::togglePasswordVisibility(bool visible) { ui->lePassword->setEchoMode(visible ? QLineEdit::EchoMode::Normal : QLineEdit::EchoMode::Password); }
+
+void DatabaseEntryManager::generatePassword()
+{
+    SecureBuffer<QChar> password;
+    PasswordGenerator generator(password, this);
+
+    if (generator.exec() == QDialog::DialogCode::Accepted) {
+        Utils::clearQLineEdit(ui->lePassword);
+        ui->lePassword->setText(QString(password.data(), password.size()));
+    }
+}
 
 void DatabaseEntryManager::copyUsernameToClipboard(const QModelIndex& index)
 {
@@ -97,11 +111,11 @@ void DatabaseEntryManager::setHistoryTable()
             ui->twHistory->setItem(row, 0, new QTableWidgetItem(item.createdAt().toString(Qt::DateFormat::RFC2822Date)));
         }
 
-        HistoryActionButtonDelegate* usernameButton = new HistoryActionButtonDelegate(QIcon::fromTheme("user-offline"), this);
+        HistoryActionButtonDelegate* usernameButton = new HistoryActionButtonDelegate(QIcon(QString("%1/user.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
         connect(usernameButton, &HistoryActionButtonDelegate::clicked, this, &DatabaseEntryManager::copyUsernameToClipboard);
         ui->twHistory->setItemDelegateForColumn(1, usernameButton);
 
-        HistoryActionButtonDelegate* passwordButton = new HistoryActionButtonDelegate(QIcon::fromTheme("system-lock-screen"), this);
+        HistoryActionButtonDelegate* passwordButton = new HistoryActionButtonDelegate(QIcon(QString("%1/unlock.svg").arg(Config::constants::ICONS_RESOURCE_DIRECTORY)), this);
         connect(passwordButton, &HistoryActionButtonDelegate::clicked, this, &DatabaseEntryManager::copyPasswordToClipboard);
         ui->twHistory->setItemDelegateForColumn(2, passwordButton);
     }

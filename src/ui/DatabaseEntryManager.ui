@@ -114,7 +114,10 @@
         <string/>
        </property>
        <property name="icon">
-        <iconset theme="QIcon::ThemeIcon::SystemSearch"/>
+        <iconset>
+         <selectedoff>:/icons/eye.svg</selectedoff>
+         <selectedon>:/icons/eyeoff.svg</selectedon>
+        </iconset>
        </property>
        <property name="iconSize">
         <size>
@@ -124,6 +127,17 @@
        </property>
        <property name="checkable">
         <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pbPasswordGenerate">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="../resources/Icons.qrc">
+         <normaloff>:/icons/key.svg</normaloff>:/icons/key.svg</iconset>
        </property>
       </widget>
      </item>
@@ -164,7 +178,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../resources/Icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

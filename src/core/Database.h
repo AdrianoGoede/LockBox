@@ -37,6 +37,8 @@ public:
     void removeEntry(const QUuid& uid);
     void moveGroup(const QUuid& group, const QUuid& newParent);
     void removeGroup(const QUuid& uid);
+    QString filePath() const;
+    QUuid rootGroupUuid() const;
     size_t entryCount() const;
     size_t groupCount() const;
     SecureBuffer<QChar> entryUsername(const QUuid& entryUid) const;

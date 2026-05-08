@@ -143,6 +143,8 @@ void Database::moveGroup(const QUuid& group, const QUuid& newParent)
 {
     if (!_dbGroups.contains(group))
         throw std::runtime_error("Group does not exist");
+    if (group == rootGroupUuid())
+        throw std::runtime_error("Root group cannot be moved");
     if (!_dbGroups.contains(newParent))
         throw std::runtime_error("New parent group does not exist");
     _dbGroups[group].setParent(newParent);
@@ -153,6 +155,8 @@ void Database::removeGroup(const QUuid& uid)
 {
     qsizetype row = _dbGroupKeys.indexOf(uid);
     if (row < 0) return;
+    if (uid == rootGroupUuid())
+        throw std::runtime_error("Root group cannot be removed");
 
     for (const QUuid& entry : entriesOfGroup(uid)) {
         _dbEntryKeys.removeOne(entry);
@@ -163,6 +167,10 @@ void Database::removeGroup(const QUuid& uid)
     _dbGroups.remove(uid);
     emit groupRemoved(row, uid);
 }
+
+QString Database::filePath() const { return _filePath; }
+
+QUuid Database::rootGroupUuid() const { return (!_dbGroupKeys.empty() ? _dbGroupKeys.first() : QUuid(0)); }
 
 size_t Database::entryCount() const { return _dbEntries.size(); }
 

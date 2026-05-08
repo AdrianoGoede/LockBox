@@ -257,10 +257,11 @@
          </sizepolicy>
         </property>
         <property name="text">
-         <string>Change Password</string>
+         <string>  Change Password</string>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::SystemLockScreen"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/lock.svg</normaloff>:/icons/lock.svg</iconset>
         </property>
        </widget>
       </item>
@@ -273,7 +274,8 @@
          <string>Set Unlock Time</string>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::AppointmentNew"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/clock.svg</normaloff>:/icons/clock.svg</iconset>
         </property>
        </widget>
       </item>
@@ -295,7 +297,9 @@
    </item>
   </layout>
  </widget>
- <resources/>
+ <resources>
+  <include location="../resources/Icons.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>buttonBox</sender>

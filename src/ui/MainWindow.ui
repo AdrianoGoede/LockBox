@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>750</width>
+    <width>850</width>
     <height>500</height>
    </rect>
   </property>
@@ -29,7 +29,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DocumentSave"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/save.svg</normaloff>:/icons/save.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -48,7 +49,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DialogPassword"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/lock.svg</normaloff>:/icons/lock.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -80,7 +82,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::ListAdd"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/add.svg</normaloff>:/icons/add.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -99,7 +102,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DocumentOpen"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/edit.svg</normaloff>:/icons/edit.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -118,7 +122,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/remove.svg</normaloff>:/icons/remove.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -147,7 +152,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DocumentSend"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/key.svg</normaloff>:/icons/key.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -166,7 +172,8 @@
          <string/>
         </property>
         <property name="icon">
-         <iconset theme="QIcon::ThemeIcon::DriveHarddisk"/>
+         <iconset resource="../resources/Icons.qrc">
+          <normaloff>:/icons/configure.svg</normaloff>:/icons/configure.svg</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -243,6 +250,9 @@
         <property name="selectionBehavior">
          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
         </property>
+        <property name="sortingEnabled">
+         <bool>true</bool>
+        </property>
        </widget>
       </item>
      </layout>
@@ -254,7 +264,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>750</width>
+     <width>850</width>
      <height>22</height>
     </rect>
    </property>
@@ -319,11 +329,19 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionDatabaseNew">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/newfile.svg</normaloff>:/icons/newfile.svg</iconset>
+   </property>
    <property name="text">
     <string>New</string>
    </property>
   </action>
   <action name="actionDatabaseOpen">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/filetext.svg</normaloff>:/icons/filetext.svg</iconset>
+   </property>
    <property name="text">
     <string>Open</string>
    </property>
@@ -331,6 +349,10 @@
   <action name="actionDatabaseSave">
    <property name="enabled">
     <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/save.svg</normaloff>:/icons/save.svg</iconset>
    </property>
    <property name="text">
     <string>Save</string>
@@ -340,6 +362,10 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/save.svg</normaloff>:/icons/save.svg</iconset>
+   </property>
    <property name="text">
     <string>SaveAs</string>
    </property>
@@ -348,6 +374,10 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/configure.svg</normaloff>:/icons/configure.svg</iconset>
+   </property>
    <property name="text">
     <string>Settings</string>
    </property>
@@ -355,6 +385,10 @@
   <action name="actionDatabaseLock">
    <property name="enabled">
     <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/lock.svg</normaloff>:/icons/lock.svg</iconset>
    </property>
    <property name="text">
     <string>Lock</string>
@@ -366,16 +400,37 @@
    </property>
   </action>
   <action name="actionEntriesNew">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/add.svg</normaloff>:/icons/add.svg</iconset>
+   </property>
    <property name="text">
     <string>New</string>
    </property>
   </action>
   <action name="actionEntriesEdit">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/edit.svg</normaloff>:/icons/edit.svg</iconset>
+   </property>
    <property name="text">
     <string>Edit</string>
    </property>
   </action>
   <action name="actionEntriesDelete">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/remove.svg</normaloff>:/icons/remove.svg</iconset>
+   </property>
    <property name="text">
     <string>Delete</string>
    </property>
@@ -386,36 +441,79 @@
    </property>
   </action>
   <action name="actionEntriesCopyUsername_2">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/user.svg</normaloff>:/icons/user.svg</iconset>
+   </property>
    <property name="text">
     <string>Copy Username</string>
    </property>
   </action>
   <action name="actionEntriesCopyPassword">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/unlock.svg</normaloff>:/icons/unlock.svg</iconset>
+   </property>
    <property name="text">
     <string>Copy Password</string>
    </property>
   </action>
   <action name="actionEntriesPerformAutotype">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/enter.svg</normaloff>:/icons/enter.svg</iconset>
+   </property>
    <property name="text">
     <string>Perform Autotype</string>
    </property>
   </action>
   <action name="actionGroupsNew">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/add.svg</normaloff>:/icons/add.svg</iconset>
+   </property>
    <property name="text">
     <string>New</string>
    </property>
   </action>
   <action name="actionGroupsEdit">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/edit.svg</normaloff>:/icons/edit.svg</iconset>
+   </property>
    <property name="text">
     <string>Edit</string>
    </property>
   </action>
   <action name="actionGroupsDelete">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/remove.svg</normaloff>:/icons/remove.svg</iconset>
+   </property>
    <property name="text">
     <string>Delete</string>
    </property>
   </action>
   <action name="actionToolsPasswordGenerator">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/key.svg</normaloff>:/icons/key.svg</iconset>
+   </property>
    <property name="text">
     <string>Password Generator</string>
    </property>
@@ -426,16 +524,26 @@
    </property>
   </action>
   <action name="actionHelpGithubRepo">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/repository.svg</normaloff>:/icons/repository.svg</iconset>
+   </property>
    <property name="text">
     <string>Github Repo</string>
    </property>
   </action>
   <action name="actionHelpAbout">
+   <property name="icon">
+    <iconset resource="../resources/Icons.qrc">
+     <normaloff>:/icons/question.svg</normaloff>:/icons/question.svg</iconset>
+   </property>
    <property name="text">
     <string>About</string>
    </property>
   </action>
  </widget>
- <resources/>
+ <resources>
+  <include location="../resources/Icons.qrc"/>
+ </resources>
  <connections/>
 </ui>

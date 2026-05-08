@@ -38,7 +38,7 @@ QVariant DatabaseEntryTableModel::data(const QModelIndex& index, int role) const
     if (role == Qt::DisplayRole) {
         switch (index.column()) {
             case DatabaseEntryModelColumns::Title: return entry->title();
-            case DatabaseEntryModelColumns::ModifiedAt: return entry->modifiedAt();
+            case DatabaseEntryModelColumns::ModifiedAt: return entry->modifiedAt().toLocalTime();
         }
     }
     else if (role == Qt::UserRole + 1)
