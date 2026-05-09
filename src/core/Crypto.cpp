@@ -3,6 +3,7 @@
 #include <QtTypes>
 #include <sodium.h>
 #include <QString>
+#include <QThread>
 #include <QStringConverter>
 
 QByteArray Crypto::encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData)
@@ -75,29 +76,30 @@ SecureBuffer<std::byte> Crypto::deriveKey(const SecureBuffer<std::byte>& passwor
     return key;
 }
 
-void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism)
+void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism, std::shared_ptr<std::atomic<bool>> cancelled)
 {
-    if (sodium_init() < 0) throw std::runtime_error("libsodium init failed");
+    parallelism = qBound(
+        (quint32)Config::constants::MIN_KDF_PARALLELISM,
+        (quint32)QThread::idealThreadCount(),
+        (quint32)Config::constants::MAX_KDF_PARALLELISM
+    );
 
-    memoryKiB = (Config::constants::DEFAULT_KDF_MEMORY);
-    iterations = Config::constants::DEFAULT_KDF_ITERATIONS;
-    parallelism = Config::constants::DEFAULT_KDF_PARALLELISM;
+    QByteArray dummySalt(Config::constants::SALT_BYTES, 'X');
+    QByteArray dummyPassword("TestTest");
 
-    QByteArray dummySalt(Config::constants::SALT_BYTES, 'x');
-    QByteArray dummyOutput(Config::constants::SALT_BYTES, 0);
-    QString dummyPassword("test");
-
-    auto benchmark = [&]() -> std::chrono::milliseconds {
+    auto benchmark = [&](quint64 memory, quint32 iterations) -> std::chrono::milliseconds {
+        if (cancelled && cancelled->load()) return std::chrono::milliseconds::zero();
+        QByteArray output(Config::constants::KEY_BYTES, '\0');
         auto start = std::chrono::high_resolution_clock::now();
         int result = crypto_pwhash(
-            reinterpret_cast<uchar*>(dummyOutput.data()),
-            Config::constants::SALT_BYTES,
-            dummyPassword.toUtf8(),
+            reinterpret_cast<uchar*>(output.data()),
+            output.size(),
+            reinterpret_cast<const char*>(dummyPassword.constData()),
             dummyPassword.size(),
             reinterpret_cast<const uchar*>(dummySalt.constData()),
             iterations,
-            (memoryKiB * 1024ULL),
-            crypto_pwhash_ALG_ARGON2ID13
+            (memory * 1024ULL),
+            Config::constants::KEY_DERIVATION_ALGORITHM
         );
         auto end = std::chrono::high_resolution_clock::now();
 
@@ -106,8 +108,28 @@ void Crypto::tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& 
         return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     };
 
-    while (benchmark() < targetDelay && memoryKiB <= Config::constants::MAX_KDF_MEMORY)
-        memoryKiB *= 2;
+    std::chrono::milliseconds halfTarget = (targetDelay / 2);
+    memoryKiB = Config::constants::MIN_KDF_MEMORY;
+    iterations = Config::constants::MIN_KDF_ITERATIONS;
+
+    while ((memoryKiB * 2) <= Config::constants::MAX_KDF_MEMORY) {
+        if (cancelled && cancelled->load()) return;
+        quint64 candidate = (memoryKiB * 2);
+        if (benchmark(candidate, iterations) > halfTarget)
+            break;
+        memoryKiB = candidate;
+    }
+
+    std::chrono::milliseconds currentTime = benchmark(memoryKiB, iterations);
+    while (currentTime < targetDelay) {
+        if (cancelled && cancelled->load()) return;
+        quint32 candidateIterations = (iterations + 1);
+        if (candidateIterations > Config::constants::MAX_KDF_ITERATIONS) break;
+        std::chrono::milliseconds candidateTime = benchmark(memoryKiB, candidateIterations);
+        if (candidateTime > targetDelay) break;
+        iterations = candidateIterations;
+        currentTime = candidateTime;
+    }
 }
 
 void Crypto::zeroMemory(void* ptr, qsizetype count) { sodium_memzero(ptr, count); }

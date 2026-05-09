@@ -271,7 +271,7 @@
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Set Unlock Time</string>
+         <string> Set Unlock Time</string>
         </property>
         <property name="icon">
          <iconset resource="../resources/Icons.qrc">

@@ -9,7 +9,7 @@ namespace Crypto {
     QByteArray encrypt(const SecureBuffer<std::byte>& plaintext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
     SecureBuffer<std::byte> decrypt(const QByteArray& ciphertext, const SecureBuffer<std::byte>& key, const QByteArray& nonce, const QByteArray& associatedData = QByteArray(0));
     SecureBuffer<std::byte> deriveKey(const SecureBuffer<std::byte>& password, const QByteArray& salt, quint64 memoryKib, quint32 iterations, quint32 parallelism);
-    void tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism);
+    void tuneArgon2idParams(std::chrono::milliseconds targetDelay, quint64& memoryKiB, quint32& iterations, quint32& parallelism, std::shared_ptr<std::atomic<bool>> cancelled);
     void zeroMemory(void* ptr, qsizetype count);
     SecureBuffer<std::byte> generateKey();
     SecureBuffer<QChar> generateRandomPassword(const QVector<QChar>& charset, qsizetype length);

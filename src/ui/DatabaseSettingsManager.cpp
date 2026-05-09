@@ -4,6 +4,8 @@
 #include "../core/Crypto.h"
 #include "PasswordDialog.h"
 #include <QInputDialog>
+#include <QMessageBox>
+#include <QFuture>
 
 DatabaseSettingsManager::DatabaseSettingsManager(DatabaseSettings& settings, const DatabaseSettings* existingSettings, QWidget* parent) : QDialog(parent), ui(new Ui::DatabaseSettingsManager), _settings(settings), _existingSettings(existingSettings)
 {
@@ -43,8 +45,10 @@ DatabaseSettingsManager::~DatabaseSettingsManager() { delete ui; }
 void DatabaseSettingsManager::changePassword()
 {
     PasswordDialog passwordGenerator(_settings.password, this);
-    if (passwordGenerator.exec() == QDialog::DialogCode::Accepted)
+    if (passwordGenerator.exec() == QDialog::DialogCode::Accepted) {
         setKdfSettingsEnabled(true);
+        ui->pbChangePassword->setText("New password set!");
+    }
     else {
         _settings.password = SecureBuffer<QChar>();
         setKdfSettingsEnabled(false);
@@ -53,16 +57,38 @@ void DatabaseSettingsManager::changePassword()
 
 void DatabaseSettingsManager::setUnlockTime()
 {
-    std::chrono::milliseconds msecs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::duration<int>(ui->sbSetUnlockTime->value()));
-    quint64 memory;
-    quint32 iterations, parallelism;
+    setKdfParamTuningRunning(true);
 
-    Crypto::tuneArgon2idParams(msecs, memory, iterations, parallelism);
+    _kdfTuningCancelled = std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<std::atomic<bool>> cancelled = _kdfTuningCancelled;
 
-    ui->sbKdfMemory->setValue(memory / 1024);
-    ui->sbKdfIterations->setValue(iterations);
-    ui->sbKdfParallelism->setValue(parallelism);
-    ui->sbKdfIterations->setValue(iterations);
+    _kdfTuningFuture = QtConcurrent::run([=]() {
+        std::chrono::milliseconds msecs(ui->sbSetUnlockTime->value() * 1000);
+        quint64 memory;
+        quint32 iterations, parallelism;
+
+        try {
+            Crypto::tuneArgon2idParams(msecs, memory, iterations, parallelism, cancelled);
+        }
+        catch (...) {
+            if (*cancelled) return;
+            QMetaObject::invokeMethod(this, [=] {
+                QMessageBox::critical(this, "Error", "KDF parameter tuning failed", QMessageBox::StandardButton::Ok);
+            });
+            return;
+        }
+
+        if (*cancelled)
+            return;
+
+        QMetaObject::invokeMethod(this, [=] {
+            ui->sbKdfMemory->setValue(memory / 1024);
+            ui->sbKdfIterations->setValue(iterations);
+            ui->sbKdfParallelism->setValue(parallelism);
+            ui->sbKdfIterations->setValue(iterations);
+            setKdfParamTuningRunning(false);
+        });
+    });
 }
 
 void DatabaseSettingsManager::accept()
@@ -79,6 +105,10 @@ void DatabaseSettingsManager::accept()
 void DatabaseSettingsManager::reject()
 {
     _settings.password = SecureBuffer<QChar>();
+    if (_kdfTuningCancelled)
+        _kdfTuningCancelled->store(true);
+    if (_kdfTuningFuture.isRunning())
+        _kdfTuningFuture.waitForFinished();
     QDialog::reject();
 }
 
@@ -90,4 +120,18 @@ void DatabaseSettingsManager::setKdfSettingsEnabled(bool enabled)
     ui->sbKdfMemory->setEnabled(enabled);
     ui->sbKdfIterations->setEnabled(enabled);
     ui->sbKdfParallelism->setEnabled(enabled);
+}
+
+void DatabaseSettingsManager::setKdfParamTuningRunning(bool running)
+{
+    ui->pbSetUnlockTime->setEnabled(!running);
+    ui->pbSetUnlockTime->setText(running ? " Calculating KDF params..." : " Set Unlock Time");
+    ui->sbSetUnlockTime->setEnabled(!running);
+    ui->sbKdfMemory->setEnabled(!running);
+    ui->sbKdfIterations->setEnabled(!running);
+    ui->sbKdfParallelism->setEnabled(!running);
+    ui->sbKdfIterations->setEnabled(!running);
+
+    if (QPushButton* button = ui->buttonBox->button(QDialogButtonBox::StandardButton::Save))
+        button->setEnabled(!running);
 }

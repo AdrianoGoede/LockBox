@@ -18,6 +18,7 @@ namespace Config::constants {
     inline constexpr char WORDLISTS_RESOURCE_DIRECTORY[]            = ":/wordlists";
     inline constexpr std::chrono::milliseconds DEFAULT_UNLOCK_DELAY = (std::chrono::milliseconds)1000;
 
+    inline constexpr int KEY_DERIVATION_ALGORITHM                   = crypto_pwhash_ALG_ARGON2ID13;
     inline constexpr int SALT_BYTES                                 = crypto_pwhash_argon2id_SALTBYTES;
     inline constexpr int NONCE_BYTES                                = crypto_aead_aes256gcm_NPUBBYTES;
     inline constexpr int KEY_BYTES                                  = crypto_aead_aes256gcm_KEYBYTES;
